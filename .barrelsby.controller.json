@@ -1,0 +1,12 @@
+{
+  "delete": true,
+  "barrelName": "index.ts",
+  "singleQuotes": true,
+  "location": "top",
+  "structure": "flat",
+  "directory": [
+    "apps/admin-app/src/controllers",
+    "apps/user-app/src/controllers"
+  ],
+  "include": [".*\\.controller\\.ts$"]
+}

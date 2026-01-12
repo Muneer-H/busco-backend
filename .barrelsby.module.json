@@ -1,0 +1,14 @@
+{
+  "delete": true,
+  "barrelName": "index.ts",
+  "singleQuotes": true,
+  "location": "top",
+  "structure": "flat",
+  "directory": "libs",
+  "include": [
+    ".*\\.module\\.ts$"
+  ],
+  "exclude": [
+    ".*/src/index\\.ts$"
+  ]
+}

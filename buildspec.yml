@@ -1,0 +1,43 @@
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    PNPM_HOME: /root/.local/share/pnpm
+  exported-variables:
+    - IMAGE_TAG
+    - IMAGE_URI
+
+phases:
+  install:
+    commands:
+      - npm install -g pnpm@10
+      - pnpm install --frozen-lockfile
+
+  pre_build:
+    commands:
+      - |
+        if [ -z "${ECR_REGISTRY}" ] || [ -z "${ECR_REPOSITORY}" ]; then
+          echo "ECR_REGISTRY and ECR_REPOSITORY environment variables are required." >&2
+          exit 1
+        fi
+        GIT_SHA=$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}" | cut -c 1-7)
+        IMAGE_TAG="${ENVIRONMENT:-dev}-${GIT_SHA}"
+        IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+      - aws ecr get-login-password --region "me-central-1" | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+
+  build:
+    commands:
+      - sed -i "s|FROM public.ecr.aws/docker/library/node:24-trixie-slim AS base|FROM $BASE_IMAGE_URI AS base|" Dockerfile
+      - docker build --build-arg NODE_ENV=production -t "${IMAGE_URI}" .
+
+  post_build:
+    commands:
+      - docker push "${IMAGE_URI}"
+      - printf '[{"name":"%s","imageUri":"%s"}]' "${ECS_CONTAINER_NAME:-busco}" "${IMAGE_URI}" > imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+
+
