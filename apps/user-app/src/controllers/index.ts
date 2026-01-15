@@ -4,4 +4,5 @@
 
 export * from './event/event.controller';
 export * from './event-category/event_category.controller';
+export * from './setting/setting.controller';
 export * from './user/user.controller';
