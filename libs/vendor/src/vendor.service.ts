@@ -1,14 +1,17 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { VendorRepository } from './repositories/vendor.repository';
 import { VendorImageRepository } from './repositories/vendor_image.repository';
+import { SavedVendorRepository } from './repositories/saved_vendor.repository';
 import {
   CreateVendorDto,
   UpdateVendorDto,
   GetVendorDto,
   UpdateVendorImageDto,
+  GetSavedVendorDto,
 } from './dtos/vendor.dto';
 import { VendorModel } from './models/vendor.entity';
 import { VendorImageModel } from './models/vendor_image.entity';
+import { SavedVendorModel } from './models/saved_vendor.entity';
 import { GetPaginationOptions } from '@app/common/helpers/misc.helper';
 import { FindOptionsWhere, ILike, In } from 'typeorm';
 import { DeleteAWSFile } from '@app/common/helpers/media.helper';
@@ -18,6 +21,7 @@ export class VendorService {
   constructor(
     private vendorRepository: VendorRepository,
     private vendorImageRepository: VendorImageRepository,
+    private savedVendorRepository: SavedVendorRepository,
   ) {}
 
   public async CreateVendor(
@@ -50,6 +54,53 @@ export class VendorService {
     );
 
     return { vendors, count };
+  }
+
+  public async GetSavedVendors(query: GetSavedVendorDto, userId: number) {
+    const options = GetPaginationOptions(query);
+    return await this.savedVendorRepository.GetSavedVendors(userId, options);
+  }
+
+  public async SaveVendor(vendorId: number, userId: number) {
+    const vendor = await this.vendorRepository.FindOne({
+      id: vendorId,
+      is_deleted: false,
+    });
+    if (!vendor) {
+      throw new BadRequestException('Vendor not found');
+    }
+
+    const existing = await this.savedVendorRepository.FindOne({
+      user_id: userId,
+      vendor_id: vendorId,
+    });
+    if (existing) {
+      return { success: true };
+    }
+
+    const savedVendor = new SavedVendorModel();
+    savedVendor.user_id = userId;
+    savedVendor.vendor_id = vendorId;
+    await this.savedVendorRepository.Create(savedVendor);
+
+    return { success: true };
+  }
+
+  public async UnsaveVendor(vendorId: number, userId: number) {
+    const savedVendor = await this.savedVendorRepository.FindOne({
+      user_id: userId,
+      vendor_id: vendorId,
+    });
+    if (!savedVendor) {
+      throw new BadRequestException('Saved vendor not found');
+    }
+
+    await this.savedVendorRepository.Delete({
+      user_id: savedVendor.user_id,
+      vendor_id: savedVendor.vendor_id,
+    });
+
+    return { success: true };
   }
 
   public async GetVendorById(id: number): Promise<VendorModel> {

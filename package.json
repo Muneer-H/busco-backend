@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build:all": "nest build user-app && nest build admin-app && ppenpm copy:assets",
+    "build:all": "nest build user-app && nest build admin-app && pnpm copy:assets",
     "build:user": "nest build user-app && pnpm copy:assets",
     "build:admin": "nest build admin-app && pnpm copy:assets",
     "copy:assets": "mkdir -p dist/libs/common/src/templates && cp -r libs/common/src/templates/* dist/libs/common/src/templates/",

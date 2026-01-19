@@ -152,6 +152,8 @@ export class GetVendorDto extends PaginationParam {
   search_query?: string;
 }
 
+export class GetSavedVendorDto extends PaginationParam {}
+
 export class CreateVendorImageDto {
   @IsString()
   @IsNotEmpty()

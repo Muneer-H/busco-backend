@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { EventRepository } from './repositories/event.repository';
 import { EventImageRepository } from './repositories/event_image.repository';
+import { SavedEventRepository } from './repositories/saved_event.repository';
 import { EventCategoryRepository } from '@app/event-category/repositories/event_category.repository';
 import {
   CreateEventDto,
@@ -8,9 +9,11 @@ import {
   GetEventDto,
   UpdateEventImageDto,
   GetEventMapViewDto,
+  GetSavedEventDto,
 } from './dtos/event.dto';
 import { EventModel } from './models/event.entity';
 import { EventImageModel } from './models/event_image.entity';
+import { SavedEventModel } from './models/saved_event.entity';
 import {
   GetPaginationOptions,
   GenerateShortCode,
@@ -24,6 +27,7 @@ export class EventService {
     private eventRepository: EventRepository,
     private eventImageRepository: EventImageRepository,
     private eventCategoryRepository: EventCategoryRepository,
+    private savedEventRepository: SavedEventRepository,
   ) {}
 
   private resolveGridSize(zoom?: number): number {
@@ -107,6 +111,53 @@ export class EventService {
     );
 
     return { events, count };
+  }
+
+  public async GetSavedEvents(query: GetSavedEventDto, userId: number) {
+    const options = GetPaginationOptions(query);
+    return await this.savedEventRepository.GetSavedEvents(userId, options);
+  }
+
+  public async SaveEvent(eventId: number, userId: number) {
+    const event = await this.eventRepository.FindOne({
+      id: eventId,
+      is_deleted: false,
+    });
+    if (!event) {
+      throw new BadRequestException('Event not found');
+    }
+
+    const existing = await this.savedEventRepository.FindOne({
+      user_id: userId,
+      event_id: eventId,
+    });
+    if (existing) {
+      return { success: true };
+    }
+
+    const savedEvent = new SavedEventModel();
+    savedEvent.user_id = userId;
+    savedEvent.event_id = eventId;
+    await this.savedEventRepository.Create(savedEvent);
+
+    return { success: true };
+  }
+
+  public async UnsaveEvent(eventId: number, userId: number) {
+    const savedEvent = await this.savedEventRepository.FindOne({
+      user_id: userId,
+      event_id: eventId,
+    });
+    if (!savedEvent) {
+      throw new BadRequestException('Saved event not found');
+    }
+
+    await this.savedEventRepository.Delete({
+      user_id: savedEvent.user_id,
+      event_id: savedEvent.event_id,
+    });
+
+    return { success: true };
   }
 
   public async GetEventById(id: number): Promise<EventModel> {

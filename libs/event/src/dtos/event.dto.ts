@@ -161,6 +161,8 @@ export class GetEventDto extends PaginationParam {
   host_id?: number;
 }
 
+export class GetSavedEventDto extends PaginationParam {}
+
 export class GetEventMapViewDto {
   @IsLatitude()
   @IsNotEmpty()

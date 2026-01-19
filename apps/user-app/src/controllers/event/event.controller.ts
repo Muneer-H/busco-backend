@@ -17,6 +17,7 @@ import {
   GetEventDto,
   UpdateEventImageDto,
   GetEventMapViewDto,
+  GetSavedEventDto,
 } from '@app/event/dtos/event.dto';
 import {
   Authorized,
@@ -55,6 +56,15 @@ export class EventController {
     return await this.eventService.GetEvents(query);
   }
 
+  @Authorized()
+  @Get('/events/saved')
+  async GetSavedEvents(
+    @Query() query: GetSavedEventDto,
+    @CurrentUser() actor: IRedisUser,
+  ) {
+    return await this.eventService.GetSavedEvents(query, actor.id);
+  }
+
   @OptionalAuthorized()
   @Get('/events/map-view')
   async GetMapViewEvents(
@@ -67,6 +77,21 @@ export class EventController {
   @Get('/events/by-share-code/:shareCode')
   async GetEventByShareCode(@Param('shareCode') shareCode: string) {
     return await this.eventService.GetEventByShareCode(shareCode);
+  }
+
+  @Authorized()
+  @Post('/events/:id/save')
+  async SaveEvent(@Param('id') id: number, @CurrentUser() actor: IRedisUser) {
+    return await this.eventService.SaveEvent(id, actor.id);
+  }
+
+  @Authorized()
+  @Delete('/events/:id/save')
+  async UnsaveEvent(
+    @Param('id') id: number,
+    @CurrentUser() actor: IRedisUser,
+  ) {
+    return await this.eventService.UnsaveEvent(id, actor.id);
   }
 
   @Get('/events/:id')
