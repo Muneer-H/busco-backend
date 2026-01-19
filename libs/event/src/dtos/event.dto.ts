@@ -12,8 +12,15 @@ import {
   ValidateNested,
   Length,
   IsDate,
+  IsLatitude,
+  IsLongitude,
+  IsInt,
+  Min,
 } from 'class-validator';
-import { PaginationParam } from '@app/common/base/base.dto';
+import {
+  DateRangeDto,
+  PaginationParam,
+} from '@app/common/base/base.dto';
 
 class Location {
   @Matches(/^Point$/)
@@ -152,6 +159,51 @@ export class GetEventDto extends PaginationParam {
   @IsOptional()
   @IsNumber()
   host_id?: number;
+}
+
+export class GetEventMapViewDto {
+  @IsLatitude()
+  @IsNotEmpty()
+  sw_lat: number;
+
+  @IsLongitude()
+  @IsNotEmpty()
+  sw_lng: number;
+
+  @IsLatitude()
+  @IsNotEmpty()
+  ne_lat: number;
+
+  @IsLongitude()
+  @IsNotEmpty()
+  ne_lng: number;
+
+  @IsOptional()
+  @IsNumber()
+  zoom?: number;
+
+  @IsOptional()
+  @IsLatitude()
+  user_lat?: number;
+
+  @IsOptional()
+  @IsLongitude()
+  user_lng?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  category_ids?: number[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DateRangeDto)
+  date_range?: DateRangeDto;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  max_distance?: number; // in meters
 }
 
 export class UpdateEventImageDto {

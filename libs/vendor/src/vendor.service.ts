@@ -168,6 +168,4 @@ export class VendorService {
 
     return true;
   }
-
-
 }

@@ -167,4 +167,3 @@ export class UpdateVendorImageDto {
   @IsBoolean()
   is_thumbnail?: boolean;
 }
-

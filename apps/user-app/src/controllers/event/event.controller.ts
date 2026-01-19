@@ -16,9 +16,16 @@ import {
   UpdateEventDto,
   GetEventDto,
   UpdateEventImageDto,
+  GetEventMapViewDto,
 } from '@app/event/dtos/event.dto';
-import { Authorized } from '@app/common/decorators/authorized.decorator';
-import { CurrentUser } from '@app/common/decorators/current_user.decorator';
+import {
+  Authorized,
+  OptionalAuthorized,
+} from '@app/common/decorators/authorized.decorator';
+import {
+  CurrentUser,
+  OptionalCurrentUser,
+} from '@app/common/decorators/current_user.decorator';
 import type { IRedisUser } from '@app/user/models/user.entity';
 import { ApiFile } from '@app/common/decorators/api_file.decorator';
 import { multerObj } from '@app/common/helpers/media.helper';
@@ -46,6 +53,15 @@ export class EventController {
       query.is_private = false;
     }
     return await this.eventService.GetEvents(query);
+  }
+
+  @OptionalAuthorized()
+  @Get('/events/map-view')
+  async GetMapViewEvents(
+    @Query() query: GetEventMapViewDto,
+    @OptionalCurrentUser() actor: IRedisUser | null,
+  ) {
+    return await this.eventService.GetMapViewEvents(query, actor?.id ?? null);
   }
 
   @Get('/events/by-share-code/:shareCode')

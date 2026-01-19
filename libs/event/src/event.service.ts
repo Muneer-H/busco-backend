@@ -7,6 +7,7 @@ import {
   UpdateEventDto,
   GetEventDto,
   UpdateEventImageDto,
+  GetEventMapViewDto,
 } from './dtos/event.dto';
 import { EventModel } from './models/event.entity';
 import { EventImageModel } from './models/event_image.entity';
@@ -16,7 +17,6 @@ import {
 } from '@app/common/helpers/misc.helper';
 import { FindOptionsWhere, ILike, In } from 'typeorm';
 import { DeleteAWSFile } from '@app/common/helpers/media.helper';
-import { appEnv } from '@app/common/helpers/env.helper';
 
 @Injectable()
 export class EventService {
@@ -25,6 +25,20 @@ export class EventService {
     private eventImageRepository: EventImageRepository,
     private eventCategoryRepository: EventCategoryRepository,
   ) {}
+
+  private resolveGridSize(zoom?: number): number {
+    if (zoom === undefined || zoom === null) {
+      return 0.05;
+    }
+    if (zoom >= 18) return 0.0005;
+    if (zoom >= 16) return 0.001;
+    if (zoom >= 14) return 0.0025;
+    if (zoom >= 12) return 0.005;
+    if (zoom >= 10) return 0.02;
+    if (zoom >= 8) return 0.05;
+    if (zoom >= 6) return 0.1;
+    return 0.25;
+  }
 
   public async CreateEvent(
     body: CreateEventDto,
@@ -106,6 +120,44 @@ export class EventService {
     }
 
     return event;
+  }
+
+  public async GetMapViewEvents(
+    query: GetEventMapViewDto,
+    userId?: number | null,
+  ) {
+    if (
+      (query.user_lat && !query.user_lng) ||
+      (!query.user_lat && query.user_lng)
+    ) {
+      throw new BadRequestException('Both user_lat and user_lng are required');
+    }
+    if (query.max_distance && (!query.user_lat || !query.user_lng)) {
+      throw new BadRequestException(
+        'user_lat and user_lng are required for max_distance',
+      );
+    }
+
+    const gridSize = this.resolveGridSize(query.zoom);
+    const categoryIds =
+      query.category_ids && query.category_ids.length
+        ? query.category_ids
+        : null;
+
+    return await this.eventRepository.GetMapViewEvents({
+      gridSize,
+      swLng: query.sw_lng,
+      swLat: query.sw_lat,
+      neLng: query.ne_lng,
+      neLat: query.ne_lat,
+      userId,
+      userLat: query.user_lat ?? null,
+      userLng: query.user_lng ?? null,
+      maxDistance: query.max_distance ?? null,
+      categoryIds,
+      rangeStart: query.date_range?.start ?? null,
+      rangeEnd: query.date_range?.end ?? null,
+    });
   }
 
   public async GetEventByShareCode(shareCode: string): Promise<EventModel> {

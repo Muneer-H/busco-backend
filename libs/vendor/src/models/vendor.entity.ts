@@ -1,10 +1,5 @@
 import { BaseModel } from '@app/common/base/base.model';
-import {
-  Column,
-  Entity,
-  Index,
-  OneToMany,
-} from 'typeorm';
+import { Column, Entity, Index, OneToMany } from 'typeorm';
 import { VendorImageModel } from './vendor_image.entity';
 import type { LocationPoint } from '@app/common/types/location.type';
 
@@ -112,4 +107,3 @@ export class VendorModel extends BaseModel {
   @OneToMany(() => VendorImageModel, (image) => image.vendor)
   images: VendorImageModel[];
 }
-

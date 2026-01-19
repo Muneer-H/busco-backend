@@ -13,4 +13,3 @@ export class VendorRepository extends BaseRepository<VendorModel> {
     super(vendorRepository);
   }
 }
-

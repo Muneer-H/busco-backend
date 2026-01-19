@@ -30,4 +30,3 @@ export class VendorImageModel extends BaseModel {
   @JoinColumn({ name: 'vendor_id' })
   vendor: VendorModel;
 }
-
