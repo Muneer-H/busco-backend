@@ -3,14 +3,7 @@ import { GetSavedVendorDto } from '@app/vendor/dtos/vendor.dto';
 import { Authorized } from '@app/common/decorators/authorized.decorator';
 import { CurrentUser } from '@app/common/decorators/current_user.decorator';
 import type { IRedisUser } from '@app/user/models/user.entity';
-import {
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Vendor')

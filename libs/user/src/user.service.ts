@@ -13,6 +13,7 @@ import { RedisRepository } from '@app/common/providers/redis.repository';
 import { MailService } from '@app/common/providers/mail.service';
 import { GetVerificationCode } from '@app/common/helpers/misc.helper';
 import { appEnv } from '@app/common/helpers/env.helper';
+import type { LocationPoint } from '@app/common/types/location.type';
 import {
   DeleteAWSFile,
   GetAWSSignedUrl,
@@ -20,6 +21,12 @@ import {
 
 @Injectable()
 export class UserService {
+  private readonly defaultCity = 'Mexico City';
+  private readonly defaultGeoLocation: LocationPoint = {
+    type: 'Point',
+    coordinates: [-99.1332, 19.4326],
+  };
+
   constructor(
     private userRepository: UserRepository,
     private configService: ConfigService,
@@ -101,6 +108,8 @@ export class UserService {
       newUser.name = this.buildDefaultName(email, decodedToken.name);
       newUser.phone = phone;
       newUser.image_url = picture;
+      newUser.city = this.defaultCity;
+      newUser.geo_location = this.defaultGeoLocation;
 
       user = await this.userRepository.Create(newUser);
     } else {
@@ -186,6 +195,8 @@ export class UserService {
       newUser.firebase_uid = firebaseUser.uid;
       newUser.email = email;
       newUser.name = this.buildDefaultName(email);
+      newUser.city = this.defaultCity;
+      newUser.geo_location = this.defaultGeoLocation;
 
       user = await this.userRepository.Create(newUser);
     }
@@ -299,6 +310,7 @@ export class UserService {
     const updates: Partial<UserModel> = {
       name: body.name,
       phone: body.phone,
+      city: body.city,
       geo_location: body.geo_location as any,
     };
 

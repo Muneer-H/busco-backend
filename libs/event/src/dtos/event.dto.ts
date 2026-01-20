@@ -17,10 +17,7 @@ import {
   IsInt,
   Min,
 } from 'class-validator';
-import {
-  DateRangeDto,
-  PaginationParam,
-} from '@app/common/base/base.dto';
+import { DateRangeDto, PaginationParam } from '@app/common/base/base.dto';
 
 class Location {
   @Matches(/^Point$/)

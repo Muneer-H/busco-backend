@@ -60,6 +60,11 @@ export class UpdateMeDto {
   phone?: string;
 
   @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  city?: string;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => Location)
   geo_location?: Location;

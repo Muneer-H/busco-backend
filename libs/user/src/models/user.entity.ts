@@ -45,6 +45,14 @@ export class UserModel extends BaseModel {
   })
   image_url: string;
 
+  @Column({
+    name: 'city',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  city: string;
+
   @Index({ spatial: true })
   @Column({
     name: 'geo_location',

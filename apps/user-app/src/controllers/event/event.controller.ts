@@ -87,10 +87,7 @@ export class EventController {
 
   @Authorized()
   @Delete('/events/:id/save')
-  async UnsaveEvent(
-    @Param('id') id: number,
-    @CurrentUser() actor: IRedisUser,
-  ) {
+  async UnsaveEvent(@Param('id') id: number, @CurrentUser() actor: IRedisUser) {
     return await this.eventService.UnsaveEvent(id, actor.id);
   }
 

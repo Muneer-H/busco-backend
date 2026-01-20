@@ -10,11 +10,7 @@ import { SavedVendorRepository } from './repositories/saved_vendor.repository';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      VendorModel,
-      VendorImageModel,
-      SavedVendorModel,
-    ]),
+    TypeOrmModule.forFeature([VendorModel, VendorImageModel, SavedVendorModel]),
   ],
   providers: [
     VendorService,
