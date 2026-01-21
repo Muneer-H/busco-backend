@@ -61,8 +61,14 @@ export class CreateEventDto {
   @IsDate()
   end_time?: Date;
 
-  @IsNumber()
-  category_id: number;
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsInt({ each: true })
+  category_ids: number[];
+
+  @IsOptional()
+  @IsInt()
+  primary_category_id?: number;
 
   @IsOptional()
   @IsBoolean()
@@ -115,8 +121,14 @@ export class UpdateEventDto {
   end_time?: number;
 
   @IsOptional()
-  @IsNumber()
-  category_id?: number;
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsInt({ each: true })
+  category_ids?: number[];
+
+  @IsOptional()
+  @IsInt()
+  primary_category_id?: number;
 
   @IsOptional()
   @IsBoolean()

@@ -1,7 +1,7 @@
 import { BaseModel } from '@app/common/base/base.model';
 import { Column, Entity, OneToMany } from 'typeorm';
 import { UserCategoryInterestModel } from './user_category_interest.entity';
-import { EventModel } from '@app/event/models/event.entity';
+import { EventCategoryMapModel } from '@app/event/models/event_category_map.entity';
 
 @Entity('event_category')
 export class EventCategory extends BaseModel {
@@ -39,6 +39,9 @@ export class EventCategory extends BaseModel {
   @OneToMany(() => UserCategoryInterestModel, (interest) => interest.category)
   category_interests: UserCategoryInterestModel[];
 
-  @OneToMany(() => EventModel, (event) => event.category)
-  events: EventModel[];
+  @OneToMany(
+    () => EventCategoryMapModel,
+    (eventCategory) => eventCategory.category,
+  )
+  event_categories: EventCategoryMapModel[];
 }

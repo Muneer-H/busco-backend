@@ -1,17 +1,32 @@
 import { applyDecorators, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileInterceptor,
+  FilesInterceptor,
+  FileFieldsInterceptor,
+} from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes } from '@nestjs/swagger';
 import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
-import type { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
+import type {
+  SchemaObject,
+  ReferenceObject,
+} from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
+
+interface ApiFileField {
+  name: string;
+  maxCount?: number;
+  description?: string;
+  required?: boolean;
+}
 
 interface ApiFileOptions {
   fieldName?: string;
   description?: string;
   required?: boolean;
   additionalRequiredFields?: string[];
-  extraFields?: Record<string, SchemaObject>;
+  extraFields?: Record<string, SchemaObject | ReferenceObject>;
   multerOptions: MulterOptions;
   isArray?: boolean;
+  fields?: ApiFileField[];
 }
 
 export function ApiFile(options: ApiFileOptions): MethodDecorator {
@@ -23,10 +38,33 @@ export function ApiFile(options: ApiFileOptions): MethodDecorator {
     extraFields = {},
     multerOptions,
     isArray = false,
+    fields,
   } = options;
 
-  const properties: Record<string, SchemaObject> = {
-    [fieldName]: isArray
+  const properties: Record<string, SchemaObject | ReferenceObject> = {
+    ...extraFields,
+  };
+
+  if (fields) {
+    fields.forEach((field) => {
+      properties[field.name] =
+        field.maxCount && field.maxCount > 1
+          ? {
+              type: 'array',
+              items: {
+                type: 'string',
+                format: 'binary',
+              },
+              description: field.description,
+            }
+          : {
+              type: 'string',
+              format: 'binary',
+              description: field.description,
+            };
+    });
+  } else {
+    properties[fieldName] = isArray
       ? {
           type: 'array',
           items: {
@@ -39,14 +77,29 @@ export function ApiFile(options: ApiFileOptions): MethodDecorator {
           type: 'string',
           format: 'binary',
           description,
-        },
-    ...extraFields,
-  };
+        };
+  }
 
   const requiredFields = [
-    ...(required ? [fieldName] : []),
     ...additionalRequiredFields,
+    ...(fields
+      ? fields.filter((f) => f.required).map((f) => f.name)
+      : required
+        ? [fieldName]
+        : []),
   ].filter((value, index, array) => array.indexOf(value) === index);
+
+  let interceptor;
+  if (fields) {
+    interceptor = FileFieldsInterceptor(
+      fields.map((f) => ({ name: f.name, maxCount: f.maxCount })),
+      multerOptions,
+    );
+  } else if (isArray) {
+    interceptor = FilesInterceptor(fieldName, 10, multerOptions);
+  } else {
+    interceptor = FileInterceptor(fieldName, multerOptions);
+  }
 
   return applyDecorators(
     ApiConsumes('multipart/form-data'),
@@ -57,10 +110,6 @@ export function ApiFile(options: ApiFileOptions): MethodDecorator {
         ...(requiredFields.length ? { required: requiredFields } : {}),
       },
     }),
-    UseInterceptors(
-      isArray
-        ? FilesInterceptor(fieldName, 10, multerOptions)
-        : FileInterceptor(fieldName, multerOptions),
-    ),
+    UseInterceptors(interceptor),
   );
 }

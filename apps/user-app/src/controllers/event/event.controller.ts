@@ -100,13 +100,19 @@ export class EventController {
   @ApiFile({
     multerOptions: multerObj(S3Prefix.EVENT_IMAGE, ImageMimeTypes, true),
     description: 'Event images',
-    fieldName: 'images',
-    isArray: true,
+    fields: [
+      { name: 'thumbnail', maxCount: 1, required: false },
+      { name: 'images', maxCount: 10, required: false },
+    ],
   })
   @Post('/events/:id/images')
   async UploadEventImages(
     @Param('id') id: number,
-    @UploadedFiles(new EnsureFileExistsPipe()) files: Express.Multer.File[],
+    @UploadedFiles()
+    files: {
+      thumbnail?: Express.Multer.File[];
+      images?: Express.Multer.File[];
+    },
     @CurrentUser() actor: IRedisUser,
   ) {
     return await this.eventService.UploadEventImages(

@@ -26,7 +26,16 @@ export class SavedEventRepository extends SimpleRepository<SavedEventModel> {
         'event_image',
         'event_image.is_thumbnail = true AND event_image.is_deleted = false',
       )
-      .leftJoinAndSelect('event.category', 'category')
+      .leftJoin(
+        'event.categories',
+        'primary_category_map',
+        'primary_category_map.is_primary = true',
+      )
+      .leftJoinAndMapOne(
+        'event.category',
+        'primary_category_map.category',
+        'category',
+      )
       .leftJoinAndSelect('event.host', 'host')
       .where('saved_event.user_id = :userId', { userId })
       .orderBy('event.id', 'DESC');

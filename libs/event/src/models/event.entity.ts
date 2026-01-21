@@ -8,6 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { EventCategory } from '@app/event-category/models/event_category.entity';
+import { EventCategoryMapModel } from './event_category_map.entity';
 import { EventImageModel } from './event_image.entity';
 import { UserModel } from '@app/user/models/user.entity';
 import type { LocationPoint } from '@app/common/types/location.type';
@@ -69,13 +70,6 @@ export class EventModel extends BaseModel {
   end_time: Date;
 
   @Column({
-    name: 'category_id',
-    type: 'bigint',
-    nullable: false,
-  })
-  category_id: number;
-
-  @Column({
     name: 'allow_ads',
     type: 'boolean',
     default: false,
@@ -131,9 +125,10 @@ export class EventModel extends BaseModel {
   @OneToMany(() => EventImageModel, (image) => image.event)
   images: EventImageModel[];
 
-  @ManyToOne(() => EventCategory, (category) => category.events)
-  @JoinColumn({ name: 'category_id' })
-  category: EventCategory;
+  @OneToMany(() => EventCategoryMapModel, (category) => category.event)
+  categories: EventCategoryMapModel[];
+
+  category?: EventCategory;
 
   @ManyToOne(() => UserModel, { nullable: true })
   @JoinColumn({ name: 'host_id' })

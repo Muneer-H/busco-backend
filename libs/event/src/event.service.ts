@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { EventRepository } from './repositories/event.repository';
 import { EventImageRepository } from './repositories/event_image.repository';
 import { SavedEventRepository } from './repositories/saved_event.repository';
+import { EventCategoryMapRepository } from './repositories/event_category_map.repository';
 import { EventCategoryRepository } from '@app/event-category/repositories/event_category.repository';
 import {
   CreateEventDto,
@@ -12,13 +13,14 @@ import {
   GetSavedEventDto,
 } from './dtos/event.dto';
 import { EventModel } from './models/event.entity';
+import { EventCategoryMapModel } from './models/event_category_map.entity';
 import { EventImageModel } from './models/event_image.entity';
 import { SavedEventModel } from './models/saved_event.entity';
 import {
   GetPaginationOptions,
   GenerateShortCode,
 } from '@app/common/helpers/misc.helper';
-import { FindOptionsWhere, ILike, In } from 'typeorm';
+import { In } from 'typeorm';
 import { DeleteAWSFile } from '@app/common/helpers/media.helper';
 
 @Injectable()
@@ -28,6 +30,7 @@ export class EventService {
     private eventImageRepository: EventImageRepository,
     private eventCategoryRepository: EventCategoryRepository,
     private savedEventRepository: SavedEventRepository,
+    private eventCategoryMapRepository: EventCategoryMapRepository,
   ) {}
 
   private resolveGridSize(zoom?: number): number {
@@ -44,17 +47,143 @@ export class EventService {
     return 0.25;
   }
 
+  private async resolveEventCategories(
+    categoryIds: number[],
+    primaryCategoryId?: number,
+  ) {
+    const uniqueCategoryIds = [...new Set(categoryIds)];
+    if (!uniqueCategoryIds.length) {
+      throw new BadRequestException('At least one category is required');
+    }
+
+    const resolvedPrimaryCategoryId = primaryCategoryId ?? uniqueCategoryIds[0];
+
+    if (!uniqueCategoryIds.includes(resolvedPrimaryCategoryId)) {
+      throw new BadRequestException(
+        'Primary category must be included in category_ids',
+      );
+    }
+
+    const categoriesCount = await this.eventCategoryRepository.Count({
+      id: In(uniqueCategoryIds),
+    });
+
+    if (categoriesCount !== uniqueCategoryIds.length) {
+      throw new BadRequestException('One or more categories are invalid');
+    }
+
+    return {
+      categoryIds: uniqueCategoryIds,
+      primaryCategoryId: resolvedPrimaryCategoryId,
+    };
+  }
+
+  private async updateEventCategoryMappings(params: {
+    eventId: number;
+    categoryIds?: number[];
+    primaryCategoryId?: number;
+  }) {
+    if (!params.categoryIds && !params.primaryCategoryId) {
+      return;
+    }
+
+    const existingMappings = await this.eventCategoryMapRepository.Find({
+      event_id: params.eventId,
+    });
+
+    const existingCategoryIds = existingMappings.map(
+      (category) => +category.category_id,
+    );
+    const existingPrimaryCategoryId = existingMappings.find(
+      (category) => category.is_primary,
+    )?.category_id;
+    const normalizedPrimaryCategoryId =
+      existingPrimaryCategoryId !== undefined
+        ? +existingPrimaryCategoryId
+        : undefined;
+
+    if (!params.categoryIds) {
+      if (!existingCategoryIds.length) {
+        throw new BadRequestException('Event categories not found');
+      }
+      const primaryCategoryId = params.primaryCategoryId;
+      if (!primaryCategoryId) {
+        throw new BadRequestException('Primary category is required');
+      }
+      if (!existingCategoryIds.includes(primaryCategoryId)) {
+        throw new BadRequestException(
+          'Primary category must be one of the event categories',
+        );
+      }
+
+      await this.eventCategoryMapRepository.Update(
+        { event_id: params.eventId },
+        { is_primary: false },
+      );
+      await this.eventCategoryMapRepository.Update(
+        {
+          event_id: params.eventId,
+          category_id: primaryCategoryId,
+        },
+        { is_primary: true },
+      );
+      return;
+    }
+
+    const fallbackPrimaryCategoryId =
+      params.primaryCategoryId ??
+      (normalizedPrimaryCategoryId &&
+      params.categoryIds.includes(normalizedPrimaryCategoryId)
+        ? normalizedPrimaryCategoryId
+        : undefined);
+    const { categoryIds, primaryCategoryId } =
+      await this.resolveEventCategories(
+        params.categoryIds,
+        fallbackPrimaryCategoryId,
+      );
+
+    const toRemove = existingCategoryIds.filter(
+      (id) => !categoryIds.includes(id),
+    );
+    if (toRemove.length) {
+      await this.eventCategoryMapRepository.Delete({
+        event_id: params.eventId,
+        category_id: In(toRemove),
+      });
+    }
+
+    const toAdd = categoryIds.filter((id) => !existingCategoryIds.includes(id));
+    if (toAdd.length) {
+      const newMappings = toAdd.map((categoryId) => {
+        const mapping = new EventCategoryMapModel();
+        mapping.event_id = params.eventId;
+        mapping.category_id = categoryId;
+        mapping.is_primary = false;
+        return mapping;
+      });
+      await this.eventCategoryMapRepository.CreateAll(newMappings);
+    }
+
+    await this.eventCategoryMapRepository.Update(
+      { event_id: params.eventId },
+      { is_primary: false },
+    );
+    await this.eventCategoryMapRepository.Update(
+      { event_id: params.eventId, category_id: primaryCategoryId },
+      { is_primary: true },
+    );
+  }
+
   public async CreateEvent(
     body: CreateEventDto,
     actorId: number,
     isAdmin: boolean,
   ): Promise<EventModel> {
-    const category = await this.eventCategoryRepository.FindById(
-      body.category_id,
-    );
-    if (!category) {
-      throw new BadRequestException('Event category not found');
-    }
+    const { categoryIds, primaryCategoryId } =
+      await this.resolveEventCategories(
+        body.category_ids,
+        body.primary_category_id,
+      );
 
     const event = new EventModel();
     event.name = body.name;
@@ -64,7 +193,6 @@ export class EventService {
     event.geo_location = body.geo_location;
     event.start_time = body.start_time;
     event.end_time = body.end_time;
-    event.category_id = body.category_id;
     event.is_private = body.is_private ?? false;
     event.capacity = body.capacity;
     event.require_approval = body.require_approval ?? false;
@@ -75,40 +203,22 @@ export class EventService {
 
     const savedEvent = await this.eventRepository.Create(event);
 
+    const eventCategories = categoryIds.map((categoryId) => {
+      const mapping = new EventCategoryMapModel();
+      mapping.event_id = savedEvent.id;
+      mapping.category_id = categoryId;
+      mapping.is_primary = categoryId === primaryCategoryId;
+      return mapping;
+    });
+
+    await this.eventCategoryMapRepository.CreateAll(eventCategories);
+
     return await this.GetEventById(savedEvent.id);
   }
 
   public async GetEvents(query: GetEventDto) {
-    const options = GetPaginationOptions(query);
-    const where: FindOptionsWhere<EventModel> = {
-      is_deleted: false,
-    };
-
-    if (query.search_query) {
-      where.name = ILike(`%${query.search_query}%`);
-    }
-
-    if (query.category_id) {
-      where.category_id = query.category_id;
-    }
-
-    if (query.is_private !== undefined) {
-      where.is_private = query.is_private;
-    }
-
-    if (query.city) {
-      where.city = query.city.toLowerCase();
-    }
-
-    if (query.host_id) {
-      where.host_id = query.host_id;
-    }
-
-    const [events, count] = await this.eventRepository.FindAndCount(
-      where,
-      options,
-      ['images', 'category', 'host'],
-    );
+    const [events, count] =
+      await this.eventRepository.GetEventsWithPrimaryCategory(query);
 
     return { events, count };
   }
@@ -161,10 +271,7 @@ export class EventService {
   }
 
   public async GetEventById(id: number): Promise<EventModel> {
-    const event = await this.eventRepository.FindOne(
-      { id },
-      { relations: ['images', 'category', 'host'] },
-    );
+    const event = await this.eventRepository.GetEventWithCategories({ id });
 
     if (!event) {
       throw new BadRequestException('Event not found');
@@ -212,10 +319,9 @@ export class EventService {
   }
 
   public async GetEventByShareCode(shareCode: string): Promise<EventModel> {
-    const event = await this.eventRepository.FindOne(
-      { share_code: shareCode },
-      { relations: ['images', 'category', 'host'] },
-    );
+    const event = await this.eventRepository.GetEventWithCategories({
+      share_code: shareCode,
+    });
 
     if (!event) {
       throw new BadRequestException('Event not found');
@@ -232,25 +338,23 @@ export class EventService {
   ): Promise<EventModel> {
     const event = await this.GetEventById(id);
 
-    if (!isAdmin && event.host_id !== actorId) {
+    if (!isAdmin && event.host_id != actorId) {
       throw new BadRequestException(
         'You are not authorized to update this event',
       );
     }
 
-    if (body.category_id) {
-      const category = await this.eventCategoryRepository.FindById(
-        body.category_id,
-      );
-      if (!category) {
-        throw new BadRequestException('Event category not found');
-      }
-    }
-
     const updateData: any = { ...body };
+    delete updateData.category_ids;
+    delete updateData.primary_category_id;
     updateData.updated_by = actorId;
 
     await this.eventRepository.Update({ id }, updateData);
+    await this.updateEventCategoryMappings({
+      eventId: id,
+      categoryIds: body.category_ids,
+      primaryCategoryId: body.primary_category_id,
+    });
 
     return await this.GetEventById(id);
   }
@@ -262,7 +366,7 @@ export class EventService {
   ): Promise<boolean> {
     const event = await this.GetEventById(id);
 
-    if (!isAdmin && event.host_id !== actorId) {
+    if (!isAdmin && event.host_id != actorId) {
       throw new BadRequestException(
         'You are not authorized to cancel this event',
       );
@@ -281,26 +385,53 @@ export class EventService {
 
   public async UploadEventImages(
     id: number,
-    files: Express.Multer.File[],
+    files: {
+      thumbnail?: Express.Multer.File[];
+      images?: Express.Multer.File[];
+    },
     actorId: number,
     isAdmin: boolean,
   ): Promise<EventImageModel[]> {
     const event = await this.GetEventById(id);
 
-    if (!isAdmin && event.host_id !== actorId) {
+    if (!isAdmin && event.host_id != actorId) {
       throw new BadRequestException(
         'You are not authorized to upload images for this event',
       );
     }
 
-    const eventImages = files.map((file) => {
-      const eventImage = new EventImageModel();
-      eventImage.event_id = id;
-      eventImage.url = file['location'];
-      eventImage.is_thumbnail = false;
-      eventImage.created_by = actorId;
-      return eventImage;
-    });
+    const eventImages: EventImageModel[] = [];
+
+    if (files.thumbnail && files.thumbnail.length > 0) {
+      // Unset previous thumbnail
+      await this.eventImageRepository.Update(
+        { event_id: id, is_thumbnail: true },
+        { is_thumbnail: false },
+      );
+
+      const thumbnailFile = files.thumbnail[0];
+      const thumbnailImage = new EventImageModel();
+      thumbnailImage.event_id = id;
+      thumbnailImage.url = thumbnailFile['location'];
+      thumbnailImage.is_thumbnail = true;
+      thumbnailImage.created_by = actorId;
+      eventImages.push(thumbnailImage);
+    }
+
+    if (files.images && files.images.length > 0) {
+      files.images.forEach((file) => {
+        const eventImage = new EventImageModel();
+        eventImage.event_id = id;
+        eventImage.url = file['location'];
+        eventImage.is_thumbnail = false;
+        eventImage.created_by = actorId;
+        eventImages.push(eventImage);
+      });
+    }
+
+    if (!eventImages.length) {
+      throw new BadRequestException('No images provided');
+    }
 
     return await this.eventImageRepository.CreateAll(eventImages);
   }

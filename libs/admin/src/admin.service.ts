@@ -126,7 +126,7 @@ export class AdminService {
         is_deleted: false,
       });
 
-      if (duplicate && duplicate.id !== adminModel.id) {
+      if (duplicate && duplicate.id != adminModel.id) {
         throw new BadRequestException('Email already in use');
       }
 

@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BaseRepository } from '@app/common/base/base.repository';
 import { EventModel } from '../models/event.entity';
+import { GetEventDto } from '../dtos/event.dto';
+import { GetPaginationOptions } from '@app/common/helpers/misc.helper';
 
 @Injectable()
 export class EventRepository extends BaseRepository<EventModel> {
@@ -11,6 +13,92 @@ export class EventRepository extends BaseRepository<EventModel> {
     private eventRepository: Repository<EventModel>,
   ) {
     super(eventRepository);
+  }
+
+  public async GetEventsWithPrimaryCategory(params: GetEventDto) {
+    const pagination = GetPaginationOptions(params);
+    const qb = this.Repository.createQueryBuilder('event')
+      .leftJoinAndSelect('event.images', 'images')
+      .leftJoinAndSelect('event.host', 'host')
+      .leftJoin(
+        'event.categories',
+        'primary_category_map',
+        'primary_category_map.is_primary = true',
+      )
+      .leftJoinAndMapOne(
+        'event.category',
+        'primary_category_map.category',
+        'primary_category',
+      );
+
+    qb.where('event.is_deleted = false');
+
+    if (params.search_query) {
+      qb.andWhere('event.name ILIKE :searchQuery', {
+        searchQuery: `%${params.search_query}%`,
+      });
+    }
+
+    if (params.category_id) {
+      qb.innerJoin(
+        'event.categories',
+        'filter_category_map',
+        'filter_category_map.category_id = :categoryId',
+        { categoryId: params.category_id },
+      );
+    }
+
+    if (params.is_private !== undefined) {
+      qb.andWhere('event.is_private = :isPrivate', {
+        isPrivate: params.is_private,
+      });
+    }
+
+    if (params.city) {
+      qb.andWhere('event.city = :city', { city: params.city });
+    }
+
+    if (params.host_id) {
+      qb.andWhere('event.host_id = :hostId', { hostId: params.host_id });
+    }
+
+    qb.orderBy('event.id', 'ASC')
+      .take(pagination.limit)
+      .skip(pagination.offset);
+
+    return await qb.getManyAndCount();
+  }
+
+  public async GetEventWithCategories(where: {
+    id?: number;
+    share_code?: string;
+  }) {
+    const normalizedWhere = Object.fromEntries(
+      Object.entries(where).filter(([, value]) => value !== undefined),
+    );
+    if (!Object.keys(normalizedWhere).length) {
+      return null;
+    }
+
+    const qb = this.Repository.createQueryBuilder('event')
+      .leftJoinAndSelect('event.images', 'images')
+      .leftJoinAndSelect('event.host', 'host')
+      .leftJoinAndSelect('event.categories', 'event_category_map')
+      .leftJoinAndSelect('event_category_map.category', 'category')
+      .leftJoin(
+        'event.categories',
+        'primary_category_map',
+        'primary_category_map.is_primary = true',
+      )
+      .leftJoinAndMapOne(
+        'event.category',
+        'primary_category_map.category',
+        'primary_category',
+      );
+
+    qb.where(normalizedWhere);
+
+    return await qb.getOne();
   }
 
   public async GetMapViewEvents(params: {
@@ -67,7 +155,7 @@ export class EventRepository extends BaseRepository<EventModel> {
       FROM (
         SELECT
           "event".id,
-          "event".category_id,
+          primary_category_map.category_id AS primary_category_id,
           "event".name,
           "event".start_time,
           "event".geo_location AS event_geo_location,
@@ -76,12 +164,15 @@ export class EventRepository extends BaseRepository<EventModel> {
           ST_SnapToGrid("event".geo_location::geometry, ${params.gridSize}) AS grid_cell,
           CASE WHEN user_interest.user_id IS NULL THEN 0 ELSE 1 END AS interest_score
         FROM "event"
+        LEFT JOIN "event_category_map" AS primary_category_map
+          ON primary_category_map.event_id = "event".id
+          AND primary_category_map.is_primary = true
         LEFT JOIN "event_image" AS thumbnail_image
           ON thumbnail_image.event_id = "event".id
           AND thumbnail_image.is_thumbnail = true
           AND thumbnail_image.is_deleted = false
         LEFT JOIN "user_category_interests" AS user_interest
-          ON user_interest.category_id = "event".category_id
+          ON user_interest.category_id = primary_category_map.category_id
           AND user_interest.user_id = ${userId}
         WHERE "event".is_deleted = false
           AND "event".is_private = false
@@ -91,14 +182,22 @@ export class EventRepository extends BaseRepository<EventModel> {
             "event".geo_location::geometry
           )
           ${() => maxDistanceCondition}
-          AND (${categoryIds}::bigint[] IS NULL OR "event".category_id = ANY(${categoryIds}::bigint[]))
+          AND (
+            ${categoryIds}::bigint[] IS NULL
+            OR EXISTS (
+              SELECT 1
+              FROM "event_category_map" AS filter_map
+              WHERE filter_map.event_id = "event".id
+                AND filter_map.category_id = ANY(${categoryIds}::bigint[])
+            )
+          )
           AND (${rangeStart}::timestamp IS NULL OR (
             "event".end_time IS NULL OR "event".end_time >= ${rangeStart}::timestamp
           ))
           AND (${rangeEnd}::timestamp IS NULL OR "event".start_time <= ${rangeEnd}::timestamp)
       ) AS events
       INNER JOIN "event_category" AS category
-        ON category.id = events.category_id
+        ON category.id = events.primary_category_id
       ORDER BY
         grid_cell,
         interest_score DESC,
