@@ -65,6 +65,11 @@ export class UpdateMeDto {
   city?: string;
 
   @IsOptional()
+  @IsString()
+  @Length(1, 1000)
+  about?: string;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => Location)
   geo_location?: Location;

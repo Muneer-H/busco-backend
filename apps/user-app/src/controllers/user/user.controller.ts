@@ -10,6 +10,7 @@ import {
   Controller,
   Delete,
   Get,
+  Param,
   Post,
   Put,
   UploadedFile,
@@ -65,6 +66,12 @@ export class UserController {
   }
 
   @Authorized()
+  @Get('/user/followees')
+  async GetFollowees(@CurrentUser() user: IRedisUser) {
+    return this.userService.GetFollowees(user.id);
+  }
+
+  @Authorized()
   @Put('/user/me')
   async UpdateMe(@CurrentUser() user: IRedisUser, @Body() body: UpdateMeDto) {
     return this.userService.UpdateMe(body, user);
@@ -78,7 +85,7 @@ export class UserController {
 
   @Authorized()
   @ApiFile({
-    multerOptions: multerObj(S3Prefix.USER_PROFILE_IMAGE, ImageMimeTypes),
+    multerOptions: multerObj(S3Prefix.USER_PROFILE_IMAGE, ImageMimeTypes, true),
     description: 'User profile image',
   })
   @Post('/user/upload-profile-image')
@@ -96,5 +103,22 @@ export class UserController {
     @Body() body: UpdateCategoryInterestsDto,
   ) {
     return this.eventCategoryService.UpdateCategoryInterests(user, body);
+  }
+
+  @Authorized()
+  @Post('/user/:id/follow')
+  async FollowUser(@Param('id') id: number, @CurrentUser() user: IRedisUser) {
+    return this.userService.FollowUser(id, user.id);
+  }
+
+  @Authorized()
+  @Delete('/user/:id/follow')
+  async UnfollowUser(@Param('id') id: number, @CurrentUser() user: IRedisUser) {
+    return this.userService.UnfollowUser(id, user.id);
+  }
+
+  @Get('/user/:id')
+  async GetUserById(@Param('id') id: number) {
+    return this.userService.GetUserById(id);
   }
 }

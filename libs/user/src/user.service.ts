@@ -4,15 +4,16 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { UserRepository } from './repositories/user.repository';
+import { UserFollowRepository } from './repositories/user_follow.repository';
 import { JwtService } from '@nestjs/jwt';
 import { IRedisUser, UserModel } from './models/user.entity';
+import { UserFollowModel } from './models/user_follow.entity';
 import admin from 'firebase-admin';
 import { ConfigService } from '@nestjs/config';
 import { AuthenticateDto, UpdateMeDto } from './dtos/user.dto';
 import { RedisRepository } from '@app/common/providers/redis.repository';
 import { MailService } from '@app/common/providers/mail.service';
 import { GetVerificationCode } from '@app/common/helpers/misc.helper';
-import { appEnv } from '@app/common/helpers/env.helper';
 import type { LocationPoint } from '@app/common/types/location.type';
 import {
   DeleteAWSFile,
@@ -29,6 +30,7 @@ export class UserService {
 
   constructor(
     private userRepository: UserRepository,
+    private userFollowRepository: UserFollowRepository,
     private configService: ConfigService,
     private jwtService: JwtService,
     private redisRepository: RedisRepository,
@@ -311,12 +313,89 @@ export class UserService {
       name: body.name,
       phone: body.phone,
       city: body.city,
+      about: body.about,
       geo_location: body.geo_location as any,
     };
 
     await this.userRepository.Update({ id: user.id }, updates);
 
     return await this.GetMe(user);
+  }
+
+  public async GetUserById(id: number) {
+    const user = await this.userRepository.FindOne({
+      id,
+      is_deleted: false,
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const totalFollowers = await this.userFollowRepository.Count({
+      followee_id: id,
+    });
+
+    return {
+      name: user.name,
+      total_followers: totalFollowers,
+      city: user.city,
+      image_url: user.image_url,
+      about: user.about,
+    };
+  }
+
+  public async FollowUser(targetUserId: number, userId: number) {
+    if (targetUserId === userId) {
+      throw new BadRequestException('You cannot follow yourself');
+    }
+
+    const targetUser = await this.userRepository.FindOne({
+      id: targetUserId,
+      is_deleted: false,
+    });
+    if (!targetUser) {
+      throw new BadRequestException('User not found');
+    }
+
+    const existingFollow = await this.userFollowRepository.FindOne({
+      follower_id: userId,
+      followee_id: targetUserId,
+    });
+    if (existingFollow) {
+      return { success: true };
+    }
+
+    const follow = new UserFollowModel();
+    follow.follower_id = userId;
+    follow.followee_id = targetUserId;
+    follow.followed_at = Date.now();
+    await this.userFollowRepository.Create(follow);
+
+    return { success: true };
+  }
+
+  public async UnfollowUser(targetUserId: number, userId: number) {
+    const existingFollow = await this.userFollowRepository.FindOne({
+      follower_id: userId,
+      followee_id: targetUserId,
+    });
+    if (!existingFollow) {
+      throw new BadRequestException('Follow not found');
+    }
+
+    await this.userFollowRepository.Delete({
+      follower_id: userId,
+      followee_id: targetUserId,
+    });
+
+    return { success: true };
+  }
+
+  public async GetFollowees(userId: number) {
+    const users = await this.userRepository.GetFollowees(userId);
+
+    return users;
   }
 
   public async DeleteMe(user: IRedisUser) {

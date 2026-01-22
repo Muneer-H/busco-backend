@@ -2,6 +2,7 @@ import { BaseModel } from '@app/common/base/base.model';
 import type { LocationPoint } from '@app/common/types/location.type';
 import { Column, Entity, Index, Check, OneToMany } from 'typeorm';
 import { UserCategoryInterestModel } from '@app/event-category/models/user_category_interest.entity';
+import { UserFollowModel } from './user_follow.entity';
 
 export interface IRedisUser {
   id: number;
@@ -52,6 +53,14 @@ export class UserModel extends BaseModel {
     nullable: true,
   })
   city: string;
+
+  @Column({
+    name: 'about',
+    type: 'varchar',
+    length: 1000,
+    nullable: true,
+  })
+  about: string;
 
   @Index({ spatial: true })
   @Column({
