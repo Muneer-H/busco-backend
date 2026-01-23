@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BaseRepository } from '@app/common/base/base.repository';
+import { BaseRepository, PaginationDBParams } from '@app/common/base/base.repository';
 import { EventModel } from '../models/event.entity';
-import { GetEventDto } from '../dtos/event.dto';
+import { SavedEventModel } from '../models/saved_event.entity';
+import { GetEventDto, GetSavedEventDto } from '../dtos/event.dto';
 import { GetPaginationOptions } from '@app/common/helpers/misc.helper';
 
 @Injectable()
@@ -74,6 +75,49 @@ export class EventRepository extends BaseRepository<EventModel> {
     return await qb.getManyAndCount();
   }
 
+  public async GetSavedEvents(userId: number, query: GetSavedEventDto) {
+    const pagination = GetPaginationOptions(query);
+    const qb = this.Repository.createQueryBuilder('event')
+      .select([
+        'event',
+        'event_image.id',
+        'event_image.url',
+        'category_maps',
+        'categories.id',
+        'categories.name',
+        'categories.icon',
+        'host.id',
+        'host.name',
+        'host.image_url',
+      ])
+      .innerJoin(
+        SavedEventModel,
+        'saved_event',
+        'saved_event.event_id = event.id AND saved_event.user_id = :userId',
+        { userId },
+      )
+      .leftJoinAndSelect(
+        'event.images',
+        'event_image',
+        'event_image.is_thumbnail = true',
+      )
+      .leftJoin(
+        'event.category_maps',
+        'category_maps',
+        'category_maps.is_primary = TRUE',
+      )
+      .leftJoin('category_maps.category', 'categories')
+      .leftJoinAndSelect('event.host', 'host')
+      .where('event.is_deleted = false')
+      .orderBy('event.id', 'DESC')
+      .take(pagination.limit)
+      .skip(pagination.offset);
+
+    const [events, count] = await qb.getManyAndCount();
+
+    return { events, count };
+  }
+
   public async GetEventWithCategories(where: {
     id?: number;
     share_code?: string;
@@ -88,18 +132,8 @@ export class EventRepository extends BaseRepository<EventModel> {
     const qb = this.Repository.createQueryBuilder('event')
       .leftJoinAndSelect('event.images', 'images')
       .leftJoinAndSelect('event.host', 'host')
-      .leftJoinAndSelect('event.categories', 'event_category_map')
-      .leftJoinAndSelect('event_category_map.category', 'category')
-      .leftJoin(
-        'event.categories',
-        'primary_category_map',
-        'primary_category_map.is_primary = true',
-      )
-      .leftJoinAndMapOne(
-        'event.category',
-        'primary_category_map.category',
-        'primary_category',
-      );
+      .leftJoinAndSelect('event.category_maps', 'category_maps')
+      .leftJoinAndSelect('category_maps.category', 'category')
 
     qb.where(normalizedWhere);
 

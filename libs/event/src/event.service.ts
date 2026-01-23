@@ -224,8 +224,7 @@ export class EventService {
   }
 
   public async GetSavedEvents(query: GetSavedEventDto, userId: number) {
-    const options = GetPaginationOptions(query);
-    return await this.savedEventRepository.GetSavedEvents(userId, options);
+    return await this.eventRepository.GetSavedEvents(userId, query);
   }
 
   public async SaveEvent(eventId: number, userId: number) {
