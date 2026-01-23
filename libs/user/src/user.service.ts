@@ -331,6 +331,7 @@ export class UserService {
       city: body.city,
       about: body.about,
       geo_location: body.geo_location as any,
+      signup_completed: body.signup_completed ?? undefined,
     };
 
     await this.userRepository.Update({ id: user.id }, updates);

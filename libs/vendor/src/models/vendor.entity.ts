@@ -97,7 +97,6 @@ export class VendorModel extends BaseModel {
   })
   neighborhood: string;
 
-  
   /**
    * For record purpose. No actual use.
    */

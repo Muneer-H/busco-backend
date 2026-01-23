@@ -11,6 +11,7 @@ import {
   Matches,
   ValidateNested,
   Length,
+  IsBoolean,
 } from 'class-validator';
 
 class Location {
@@ -68,6 +69,10 @@ export class UpdateMeDto {
   @IsString()
   @Length(1, 1000)
   about?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  signup_completed?: boolean;
 
   @IsOptional()
   @ValidateNested()

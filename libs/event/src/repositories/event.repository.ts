@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BaseRepository, PaginationDBParams } from '@app/common/base/base.repository';
+import {
+  BaseRepository,
+  PaginationDBParams,
+} from '@app/common/base/base.repository';
 import { EventModel } from '../models/event.entity';
 import { SavedEventModel } from '../models/saved_event.entity';
 import { GetEventDto, GetSavedEventDto } from '../dtos/event.dto';
@@ -133,7 +136,7 @@ export class EventRepository extends BaseRepository<EventModel> {
       .leftJoinAndSelect('event.images', 'images')
       .leftJoinAndSelect('event.host', 'host')
       .leftJoinAndSelect('event.category_maps', 'category_maps')
-      .leftJoinAndSelect('category_maps.category', 'category')
+      .leftJoinAndSelect('category_maps.category', 'category');
 
     qb.where(normalizedWhere);
 

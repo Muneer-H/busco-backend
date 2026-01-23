@@ -12,5 +12,4 @@ export class SavedEventRepository extends SimpleRepository<SavedEventModel> {
   ) {
     super(savedEventRepository);
   }
-
 }

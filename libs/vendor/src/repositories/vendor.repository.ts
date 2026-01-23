@@ -19,7 +19,9 @@ export class VendorRepository extends BaseRepository<VendorModel> {
   public async GetPublicVendors(query: GetPublicVendorDto) {
     const options = GetPaginationOptions(query);
     const paginationClause =
-      options.limit != -1 ? `LIMIT ${options.limit} OFFSET ${options.offset}` : '';
+      options.limit != -1
+        ? `LIMIT ${options.limit} OFFSET ${options.offset}`
+        : '';
     const searchQuery = query.search_query?.trim() ?? null;
     const foodTypes =
       query.food_type && query.food_type.length ? query.food_type : null;

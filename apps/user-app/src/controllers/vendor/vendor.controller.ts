@@ -1,5 +1,8 @@
 import { VendorService } from '@app/vendor/vendor.service';
-import { GetPublicVendorDto, GetSavedVendorDto } from '@app/vendor/dtos/vendor.dto';
+import {
+  GetPublicVendorDto,
+  GetSavedVendorDto,
+} from '@app/vendor/dtos/vendor.dto';
 import { Authorized } from '@app/common/decorators/authorized.decorator';
 import { CurrentUser } from '@app/common/decorators/current_user.decorator';
 import type { IRedisUser } from '@app/user/models/user.entity';

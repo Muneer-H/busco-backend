@@ -88,6 +88,14 @@ export class UserModel extends BaseModel {
   })
   deleted_at: number;
 
+  @Column({
+    name: 'signup_completed',
+    type: 'boolean',
+    nullable: false,
+    default: false,
+  })
+  signup_completed: boolean;
+
   @OneToMany(() => UserCategoryInterestModel, (interest) => interest.user)
   category_interests: UserCategoryInterestModel[];
 }
