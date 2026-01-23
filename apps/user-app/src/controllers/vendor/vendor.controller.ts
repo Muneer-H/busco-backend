@@ -1,5 +1,5 @@
 import { VendorService } from '@app/vendor/vendor.service';
-import { GetSavedVendorDto } from '@app/vendor/dtos/vendor.dto';
+import { GetPublicVendorDto, GetSavedVendorDto } from '@app/vendor/dtos/vendor.dto';
 import { Authorized } from '@app/common/decorators/authorized.decorator';
 import { CurrentUser } from '@app/common/decorators/current_user.decorator';
 import type { IRedisUser } from '@app/user/models/user.entity';
@@ -10,6 +10,11 @@ import { ApiTags } from '@nestjs/swagger';
 @Controller()
 export class VendorController {
   constructor(private vendorService: VendorService) {}
+
+  @Get('/vendors')
+  async GetPublicVendors(@Query() query: GetPublicVendorDto) {
+    return await this.vendorService.GetPublicVendors(query);
+  }
 
   @Authorized()
   @Get('/vendors/saved')

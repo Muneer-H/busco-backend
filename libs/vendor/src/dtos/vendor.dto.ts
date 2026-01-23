@@ -12,6 +12,8 @@ import {
   ValidateNested,
   Length,
   IsUUID,
+  IsLatitude,
+  IsLongitude,
 } from 'class-validator';
 import { PaginationParam } from '@app/common/base/base.dto';
 
@@ -150,6 +152,38 @@ export class GetVendorDto extends PaginationParam {
   @IsOptional()
   @IsString()
   search_query?: string;
+}
+
+export class GetPublicVendorDto extends PaginationParam {
+  @IsOptional()
+  @IsString()
+  search_query?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  food_type?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  operating_days?: string[];
+
+  @IsOptional()
+  @IsString()
+  neighborhood?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  closes_if_rain?: boolean;
+
+  @IsLatitude()
+  @IsNotEmpty()
+  user_lat: number;
+
+  @IsLongitude()
+  @IsNotEmpty()
+  user_lng: number;
 }
 
 export class GetSavedVendorDto extends PaginationParam {}
