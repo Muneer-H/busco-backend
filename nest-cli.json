@@ -48,6 +48,15 @@
         "tsConfigPath": "libs/database/tsconfig.lib.json"
       }
     },
+    "device": {
+      "type": "library",
+      "root": "libs/device",
+      "entryFile": "index",
+      "sourceRoot": "libs/device/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/device/tsconfig.lib.json"
+      }
+    },
     "event": {
       "type": "library",
       "root": "libs/event",
@@ -64,6 +73,15 @@
       "sourceRoot": "libs/event-category/src",
       "compilerOptions": {
         "tsConfigPath": "libs/event-category/tsconfig.lib.json"
+      }
+    },
+    "notification": {
+      "type": "library",
+      "root": "libs/notification",
+      "entryFile": "index",
+      "sourceRoot": "libs/notification/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/notification/tsconfig.lib.json"
       }
     },
     "setting": {

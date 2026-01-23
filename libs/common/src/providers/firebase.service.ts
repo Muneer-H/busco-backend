@@ -1,10 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import admin from 'firebase-admin';
-import {
-  MulticastMessage,
-  BatchResponse,
-  MessagingPayload,
-} from 'firebase-admin/messaging';
+import { MulticastMessage, BatchResponse } from 'firebase-admin/messaging';
 import {
   INotificationProvider,
   NotificationSendResult,
@@ -37,7 +33,7 @@ export class FirebaseService implements INotificationProvider, OnModuleInit {
   }
 
   public async SendToDevices(
-    deviceTokens: string[],
+    firebaseTokens: string[],
     payload: PushNotificationPayload,
   ): Promise<NotificationSendResult> {
     if (!this.messaging) {
@@ -45,12 +41,12 @@ export class FirebaseService implements INotificationProvider, OnModuleInit {
       return { successCount: 0, failureCount: 0, invalidTokens: [] };
     }
 
-    if (!deviceTokens || deviceTokens.length === 0) {
+    if (!firebaseTokens || firebaseTokens.length === 0) {
       return { successCount: 0, failureCount: 0, invalidTokens: [] };
     }
 
     // Filter out invalid tokens (basic validation)
-    const validTokens = deviceTokens.filter(
+    const validTokens = firebaseTokens.filter(
       (token) => token && token.length > 0,
     );
 
@@ -58,8 +54,8 @@ export class FirebaseService implements INotificationProvider, OnModuleInit {
       this.logger.warn('No valid Firebase tokens found');
       return {
         successCount: 0,
-        failureCount: deviceTokens.length,
-        invalidTokens: deviceTokens,
+        failureCount: firebaseTokens.length,
+        invalidTokens: firebaseTokens,
       };
     }
 

@@ -14,7 +14,7 @@ export interface NotificationSendResult {
 
 export interface INotificationProvider {
   SendToDevices(
-    deviceTokens: string[],
+    firebaseTokens: string[],
     payload: PushNotificationPayload,
   ): Promise<NotificationSendResult>;
 }

@@ -158,8 +158,9 @@ export class GetEventDto extends PaginationParam {
   city?: string;
 
   @IsOptional()
-  @IsNumber()
-  category_id?: number;
+  @IsArray()
+  @IsInt({ each: true })
+  category_ids?: number[];
 
   @IsOptional()
   @IsBoolean()

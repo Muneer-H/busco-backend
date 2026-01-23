@@ -8,6 +8,7 @@ import { UserFollowModel } from './models/user_follow.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { CommonModule } from '@app/common/common.module';
 import { appEnv } from '@app/common/helpers/env.helper';
+import { DeviceModule } from '@app/device/device.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { appEnv } from '@app/common/helpers/env.helper';
       secret: appEnv('ACCESS_TOKEN_SECRET'),
     }),
     CommonModule,
+    DeviceModule,
   ],
   providers: [UserService, UserRepository, UserFollowRepository],
   exports: [UserService, UserRepository, UserFollowRepository],

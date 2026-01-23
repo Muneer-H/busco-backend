@@ -28,14 +28,21 @@ export class UserFollowModel extends BaseEntity {
   @Column({
     name: 'followed_at',
     type: 'bigint',
+    default: () => '((EXTRACT(epoch FROM now()) * (1000)))',
   })
   followed_at: number;
 
   @ManyToOne(() => UserModel, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'follower_id' })
+  @JoinColumn({
+    name: 'follower_id',
+    foreignKeyConstraintName: 'FK_user_follow_follower',
+  })
   follower: UserModel;
 
   @ManyToOne(() => UserModel, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'followee_id' })
+  @JoinColumn({
+    name: 'followee_id',
+    foreignKeyConstraintName: 'FK_user_follow_followee',
+  })
   followee: UserModel;
 }

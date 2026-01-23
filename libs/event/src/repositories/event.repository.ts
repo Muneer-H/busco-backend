@@ -18,18 +18,26 @@ export class EventRepository extends BaseRepository<EventModel> {
   public async GetEventsWithPrimaryCategory(params: GetEventDto) {
     const pagination = GetPaginationOptions(params);
     const qb = this.Repository.createQueryBuilder('event')
-      .leftJoinAndSelect('event.images', 'images')
-      .leftJoinAndSelect('event.host', 'host')
-      .leftJoin(
-        'event.categories',
-        'primary_category_map',
-        'primary_category_map.is_primary = true',
+      .select([
+        'event',
+        'images.id',
+        'images.url',
+        'host.id',
+        'host.name',
+        'host.image_url',
+        'category_maps',
+        'categories.id',
+        'categories.name',
+        'categories.icon',
+      ])
+      .leftJoin('event.images', 'images', 'images.is_thumbnail = TRUE')
+      .leftJoin('event.host', 'host')
+      .innerJoin(
+        'event.category_maps',
+        'category_maps',
+        'category_maps.is_primary = TRUE',
       )
-      .leftJoinAndMapOne(
-        'event.category',
-        'primary_category_map.category',
-        'primary_category',
-      );
+      .innerJoin('category_maps.category', 'categories');
 
     qb.where('event.is_deleted = false');
 
@@ -39,13 +47,10 @@ export class EventRepository extends BaseRepository<EventModel> {
       });
     }
 
-    if (params.category_id) {
-      qb.innerJoin(
-        'event.categories',
-        'filter_category_map',
-        'filter_category_map.category_id = :categoryId',
-        { categoryId: params.category_id },
-      );
+    if (params.category_ids?.length) {
+      qb.andWhere('categories.id IN (:...categoryIds)', {
+        categoryIds: params.category_ids,
+      });
     }
 
     if (params.is_private !== undefined) {

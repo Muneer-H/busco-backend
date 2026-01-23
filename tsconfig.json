@@ -40,6 +40,12 @@
       "@app/database/*": [
         "libs/database/src/*"
       ],
+      "@app/device": [
+        "libs/device/src"
+      ],
+      "@app/device/*": [
+        "libs/device/src/*"
+      ],
       "@app/event": [
         "libs/event/src"
       ],
@@ -54,6 +60,12 @@
       ],
       "@app/libs": [
         "libs"
+      ],
+      "@app/notification": [
+        "libs/notification/src"
+      ],
+      "@app/notification/*": [
+        "libs/notification/src/*"
       ],
       "@app/setting": [
         "libs/setting/src"

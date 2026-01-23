@@ -19,6 +19,7 @@ import {
   DeleteAWSFile,
   GetAWSSignedUrl,
 } from '@app/common/helpers/media.helper';
+import { DeviceService } from '@app/device/device.service';
 
 @Injectable()
 export class UserService {
@@ -35,6 +36,7 @@ export class UserService {
     private jwtService: JwtService,
     private redisRepository: RedisRepository,
     private mailService: MailService,
+    private deviceService: DeviceService,
   ) {}
 
   private getRefreshTokenCacheKey(userId: number, token: string) {
@@ -243,6 +245,11 @@ export class UserService {
       refreshTokenTimeoutHours * 3600,
     );
 
+    // Assign owner to device if device_id is provided
+    if (deviceId) {
+      await this.deviceService.AssignOwnerToDevice(+deviceId, user.id);
+    }
+
     return {
       user,
       access_token: accessToken,
@@ -291,9 +298,18 @@ export class UserService {
   }
 
   public async Logout(refreshToken: string, user: IRedisUser) {
-    await this.redisRepository.Delete(
-      this.getRefreshTokenCacheKey(user.id, refreshToken),
-    );
+    const promises: Promise<any>[] = [
+      this.redisRepository.Delete(
+        this.getRefreshTokenCacheKey(user.id, refreshToken),
+      ),
+    ];
+
+    // Unassign owner from device if device_id is provided
+    if (user.device_id) {
+      promises.push(this.deviceService.LogoutDevice(+user.device_id));
+    }
+
+    await Promise.all(promises);
     return { success: true };
   }
 

@@ -126,9 +126,7 @@ export class EventModel extends BaseModel {
   images: EventImageModel[];
 
   @OneToMany(() => EventCategoryMapModel, (category) => category.event)
-  categories: EventCategoryMapModel[];
-
-  category?: EventCategory;
+  category_maps: EventCategoryMapModel[];
 
   @ManyToOne(() => UserModel, { nullable: true })
   @JoinColumn({ name: 'host_id' })

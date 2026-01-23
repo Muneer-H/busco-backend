@@ -36,15 +36,21 @@ export class EventCategoryMapModel extends BaseEntity {
   })
   is_primary: boolean;
 
-  @ManyToOne(() => EventModel, (event) => event.categories, {
+  @ManyToOne(() => EventModel, (event) => event.category_maps, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'event_id' })
+  @JoinColumn({
+    name: 'event_id',
+    foreignKeyConstraintName: 'FK_event_category_map_event',
+  })
   event: EventModel;
 
   @ManyToOne(() => EventCategory, (category) => category.event_categories, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'category_id' })
+  @JoinColumn({
+    name: 'category_id',
+    foreignKeyConstraintName: 'FK_event_category_map_category',
+  })
   category: EventCategory;
 }
