@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { BaseRepository } from '@app/common/base/base.repository';
 import { GetPaginationOptions } from '@app/common/helpers/misc.helper';
 import { SETTING_KEYS } from '@app/common/constants/setting_keys.constant';
-import type { GetPublicVendorDto } from '../dtos/vendor.dto';
+import type { GetPublicVendorByIdDto, GetPublicVendorDto } from '../dtos/vendor.dto';
 import { VendorModel } from '../models/vendor.entity';
 
 @Injectable()
@@ -115,5 +115,70 @@ export class VendorRepository extends BaseRepository<VendorModel> {
     const vendors = rows.map(({ total_count, ...vendor }) => vendor);
 
     return { vendors, count };
+  }
+
+  public async GetPublicVendorById(id: number, query: GetPublicVendorByIdDto) {
+    const rows = await this.Repository.sql`
+      WITH filtered AS (
+        SELECT
+          "vendor".*,
+          distance_calc.distance_meters
+        FROM "vendor"
+        CROSS JOIN LATERAL (
+          SELECT ST_Distance(
+            "vendor".geo_location,
+            ST_SetSRID(ST_MakePoint(${query.user_lng}, ${query.user_lat}), 4326)::geography
+          )::integer AS distance_meters
+        ) AS distance_calc
+        WHERE "vendor".id = ${id}
+          AND "vendor".is_deleted = false
+      )
+      SELECT
+        filtered.id,
+        filtered.created_at,
+        filtered.created_by,
+        filtered.updated_at,
+        filtered.updated_by,
+        filtered.is_deleted,
+        filtered.name,
+        filtered.alt_directions,
+        filtered.food_type,
+        filtered.location_url,
+        CASE
+          WHEN filtered.geo_location IS NULL THEN NULL
+          ELSE json_build_object(
+            'type',
+            'Point',
+            'coordinates',
+            ARRAY[
+              ST_X(filtered.geo_location::geometry),
+              ST_Y(filtered.geo_location::geometry)
+            ]
+          )
+        END AS geo_location,
+        filtered.operating_days,
+        filtered.weekday_open_time,
+        filtered.weekday_close_time,
+        filtered.weekend_open_time,
+        filtered.weekend_close_time,
+        filtered.closes_if_rain,
+        filtered.neighborhood,
+        filtered.xano_id,
+        filtered.distance_meters,
+        COALESCE(images.images, '[]'::json) AS images
+      FROM filtered
+      LEFT JOIN LATERAL (
+        SELECT
+          COALESCE(
+            json_agg(to_jsonb("vendor_image") ORDER BY "vendor_image".id ASC),
+            '[]'::json
+          ) AS images
+        FROM "vendor_image"
+        WHERE "vendor_image".vendor_id = filtered.id
+          AND "vendor_image".is_deleted = false
+      ) AS images ON true
+    `;
+
+    return rows[0] ?? null;
   }
 }

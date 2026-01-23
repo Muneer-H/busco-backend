@@ -9,6 +9,7 @@ import {
   UpdateVendorImageDto,
   GetSavedVendorDto,
   GetPublicVendorDto,
+  GetPublicVendorByIdDto,
 } from './dtos/vendor.dto';
 import { VendorModel } from './models/vendor.entity';
 import { VendorImageModel } from './models/vendor_image.entity';
@@ -59,6 +60,15 @@ export class VendorService {
 
   public async GetPublicVendors(query: GetPublicVendorDto) {
     return await this.vendorRepository.GetPublicVendors(query);
+  }
+
+  public async GetPublicVendorById(id: number, query: GetPublicVendorByIdDto) {
+    const vendor = await this.vendorRepository.GetPublicVendorById(id, query);
+    if (!vendor) {
+      throw new BadRequestException('Vendor not found');
+    }
+
+    return vendor;
   }
 
   public async GetSavedVendors(query: GetSavedVendorDto, userId: number) {

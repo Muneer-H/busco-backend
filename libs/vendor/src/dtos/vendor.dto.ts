@@ -12,10 +12,12 @@ import {
   ValidateNested,
   Length,
   IsUUID,
-  IsLatitude,
-  IsLongitude,
 } from 'class-validator';
-import { PaginationParam } from '@app/common/base/base.dto';
+import {
+  PaginationParam,
+  PaginationWithUserLocationDto,
+  UserLocationDto,
+} from '@app/common/base/base.dto';
 
 class Location {
   @Matches(/^Point$/)
@@ -154,7 +156,7 @@ export class GetVendorDto extends PaginationParam {
   search_query?: string;
 }
 
-export class GetPublicVendorDto extends PaginationParam {
+export class GetPublicVendorDto extends PaginationWithUserLocationDto {
   @IsOptional()
   @IsString()
   search_query?: string;
@@ -176,15 +178,9 @@ export class GetPublicVendorDto extends PaginationParam {
   @IsOptional()
   @IsBoolean()
   closes_if_rain?: boolean;
-
-  @IsLatitude()
-  @IsNotEmpty()
-  user_lat: number;
-
-  @IsLongitude()
-  @IsNotEmpty()
-  user_lng: number;
 }
+
+export class GetPublicVendorByIdDto extends UserLocationDto {}
 
 export class GetSavedVendorDto extends PaginationParam {}
 

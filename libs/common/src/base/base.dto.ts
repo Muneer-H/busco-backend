@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional } from 'class-validator';
+import { IsDateString, IsLatitude, IsLongitude, IsNotEmpty, IsOptional } from 'class-validator';
 import { IsDateGreaterThanEqual } from '../decorators/date_validator.decorator';
 
 export class PaginationParam {
@@ -7,6 +7,26 @@ export class PaginationParam {
 
   @IsOptional()
   limit?: number;
+}
+
+export class UserLocationDto {
+  @IsLatitude()
+  @IsNotEmpty()
+  user_lat: number;
+
+  @IsLongitude()
+  @IsNotEmpty()
+  user_lng: number;
+}
+
+export class PaginationWithUserLocationDto extends PaginationParam {
+  @IsLatitude()
+  @IsNotEmpty()
+  user_lat: number;
+
+  @IsLongitude()
+  @IsNotEmpty()
+  user_lng: number;
 }
 
 export enum OrderDirection {

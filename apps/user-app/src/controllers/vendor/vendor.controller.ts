@@ -1,5 +1,6 @@
 import { VendorService } from '@app/vendor/vendor.service';
 import {
+  GetPublicVendorByIdDto,
   GetPublicVendorDto,
   GetSavedVendorDto,
 } from '@app/vendor/dtos/vendor.dto';
@@ -17,6 +18,14 @@ export class VendorController {
   @Get('/vendors')
   async GetPublicVendors(@Query() query: GetPublicVendorDto) {
     return await this.vendorService.GetPublicVendors(query);
+  }
+
+  @Get('/vendors/:id')
+  async GetPublicVendorById(
+    @Param('id') id: number,
+    @Query() query: GetPublicVendorByIdDto,
+  ) {
+    return await this.vendorService.GetPublicVendorById(id, query);
   }
 
   @Authorized()
