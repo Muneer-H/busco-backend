@@ -20,10 +20,7 @@ export class EventRepository extends BaseRepository<EventModel> {
     super(eventRepository);
   }
 
-  public async GetEvents(
-    params: GetEventDto,
-    userId?: number | null,
-  ) {
+  public async GetEvents(params: GetEventDto, userId?: number | null) {
     const pagination = GetPaginationOptions(params);
     const paginationClause =
       pagination.limit != -1
@@ -31,8 +28,11 @@ export class EventRepository extends BaseRepository<EventModel> {
         : '';
 
     const searchQuery = params.search_query?.trim() ?? null;
-    const categoryIds = params.category_ids?.length ? params.category_ids : null;
-    const isPrivate = params.is_private !== undefined ? params.is_private : null;
+    const categoryIds = params.category_ids?.length
+      ? params.category_ids
+      : null;
+    const isPrivate =
+      params.is_private !== undefined ? params.is_private : null;
     const city = params.city?.trim() ?? null;
     const hostId = params.host_id;
     const userLat = params.user_lat ?? null;

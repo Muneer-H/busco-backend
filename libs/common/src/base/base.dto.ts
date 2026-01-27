@@ -1,4 +1,10 @@
-import { IsDateString, IsLatitude, IsLongitude, IsNotEmpty, IsOptional } from 'class-validator';
+import {
+  IsDateString,
+  IsLatitude,
+  IsLongitude,
+  IsNotEmpty,
+  IsOptional,
+} from 'class-validator';
 import { IsDateGreaterThanEqual } from '../decorators/date_validator.decorator';
 
 export class PaginationParam {

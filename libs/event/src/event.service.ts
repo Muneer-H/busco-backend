@@ -217,8 +217,7 @@ export class EventService {
   }
 
   public async GetEvents(query: GetEventDto, userId?: number | null) {
-    const [events, count] =
-      await this.eventRepository.GetEvents(query, userId);
+    const [events, count] = await this.eventRepository.GetEvents(query, userId);
 
     return { events, count };
   }

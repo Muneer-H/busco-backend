@@ -20,14 +20,6 @@ export class VendorController {
     return await this.vendorService.GetPublicVendors(query);
   }
 
-  @Get('/vendors/:id')
-  async GetPublicVendorById(
-    @Param('id') id: number,
-    @Query() query: UserLocationDto,
-  ) {
-    return await this.vendorService.GetPublicVendorById(id, query);
-  }
-
   @Authorized()
   @Get('/vendors/saved')
   async GetSavedVendors(
@@ -35,6 +27,14 @@ export class VendorController {
     @CurrentUser() actor: IRedisUser,
   ) {
     return await this.vendorService.GetSavedVendors(query, actor.id);
+  }
+
+  @Get('/vendors/:id')
+  async GetPublicVendorById(
+    @Param('id') id: number,
+    @Query() query: UserLocationDto,
+  ) {
+    return await this.vendorService.GetPublicVendorById(id, query);
   }
 
   @Authorized()
