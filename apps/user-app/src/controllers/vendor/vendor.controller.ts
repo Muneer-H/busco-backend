@@ -1,6 +1,5 @@
 import { VendorService } from '@app/vendor/vendor.service';
 import {
-  GetPublicVendorByIdDto,
   GetPublicVendorDto,
   GetSavedVendorDto,
 } from '@app/vendor/dtos/vendor.dto';
@@ -9,6 +8,7 @@ import { CurrentUser } from '@app/common/decorators/current_user.decorator';
 import type { IRedisUser } from '@app/user/models/user.entity';
 import { Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { UserLocationDto } from '@app/common/base/base.dto';
 
 @ApiTags('Vendor')
 @Controller()
@@ -23,7 +23,7 @@ export class VendorController {
   @Get('/vendors/:id')
   async GetPublicVendorById(
     @Param('id') id: number,
-    @Query() query: GetPublicVendorByIdDto,
+    @Query() query: UserLocationDto,
   ) {
     return await this.vendorService.GetPublicVendorById(id, query);
   }

@@ -4,8 +4,9 @@ import { Repository } from 'typeorm';
 import { BaseRepository } from '@app/common/base/base.repository';
 import { GetPaginationOptions } from '@app/common/helpers/misc.helper';
 import { SETTING_KEYS } from '@app/common/constants/setting_keys.constant';
-import type { GetPublicVendorByIdDto, GetPublicVendorDto } from '../dtos/vendor.dto';
+import type { GetPublicVendorDto } from '../dtos/vendor.dto';
 import { VendorModel } from '../models/vendor.entity';
+import { UserLocationDto } from '@app/common/base/base.dto';
 
 @Injectable()
 export class VendorRepository extends BaseRepository<VendorModel> {
@@ -117,7 +118,7 @@ export class VendorRepository extends BaseRepository<VendorModel> {
     return { vendors, count };
   }
 
-  public async GetPublicVendorById(id: number, query: GetPublicVendorByIdDto) {
+  public async GetPublicVendorById(id: number, query: UserLocationDto) {
     const rows = await this.Repository.sql`
       WITH filtered AS (
         SELECT
@@ -163,7 +164,6 @@ export class VendorRepository extends BaseRepository<VendorModel> {
         filtered.weekend_close_time,
         filtered.closes_if_rain,
         filtered.neighborhood,
-        filtered.xano_id,
         filtered.distance_meters,
         COALESCE(images.images, '[]'::json) AS images
       FROM filtered

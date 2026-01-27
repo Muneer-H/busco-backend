@@ -9,7 +9,6 @@ import {
   UpdateVendorImageDto,
   GetSavedVendorDto,
   GetPublicVendorDto,
-  GetPublicVendorByIdDto,
 } from './dtos/vendor.dto';
 import { VendorModel } from './models/vendor.entity';
 import { VendorImageModel } from './models/vendor_image.entity';
@@ -17,6 +16,7 @@ import { SavedVendorModel } from './models/saved_vendor.entity';
 import { GetPaginationOptions } from '@app/common/helpers/misc.helper';
 import { FindOptionsWhere, ILike, In } from 'typeorm';
 import { DeleteAWSFile } from '@app/common/helpers/media.helper';
+import { UserLocationDto } from '@app/common/base/base.dto';
 
 @Injectable()
 export class VendorService {
@@ -62,7 +62,7 @@ export class VendorService {
     return await this.vendorRepository.GetPublicVendors(query);
   }
 
-  public async GetPublicVendorById(id: number, query: GetPublicVendorByIdDto) {
+  public async GetPublicVendorById(id: number, query: UserLocationDto) {
     const vendor = await this.vendorRepository.GetPublicVendorById(id, query);
     if (!vendor) {
       throw new BadRequestException('Vendor not found');

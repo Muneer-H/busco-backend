@@ -16,7 +16,6 @@ import {
 import {
   PaginationParam,
   PaginationWithUserLocationDto,
-  UserLocationDto,
 } from '@app/common/base/base.dto';
 
 class Location {
@@ -179,8 +178,6 @@ export class GetPublicVendorDto extends PaginationWithUserLocationDto {
   @IsBoolean()
   closes_if_rain?: boolean;
 }
-
-export class GetPublicVendorByIdDto extends UserLocationDto {}
 
 export class GetSavedVendorDto extends PaginationParam {}
 
