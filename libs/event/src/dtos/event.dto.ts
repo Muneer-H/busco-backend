@@ -113,12 +113,12 @@ export class UpdateEventDto {
   geo_location?: Location;
 
   @IsOptional()
-  @IsNumber()
-  start_time?: number;
+  @IsDate()
+  start_time?: Date;
 
-  @IsNumber()
   @IsOptional()
-  end_time?: number;
+  @IsDate()
+  end_time?: Date;
 
   @IsOptional()
   @IsArray()
