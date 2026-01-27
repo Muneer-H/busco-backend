@@ -9,6 +9,7 @@ import { EventModel } from '../models/event.entity';
 import { SavedEventModel } from '../models/saved_event.entity';
 import { GetEventDto, GetSavedEventDto } from '../dtos/event.dto';
 import { GetPaginationOptions } from '@app/common/helpers/misc.helper';
+import { SETTING_KEYS } from '@app/common/constants/setting_keys.constant';
 
 @Injectable()
 export class EventRepository extends BaseRepository<EventModel> {
@@ -19,63 +20,150 @@ export class EventRepository extends BaseRepository<EventModel> {
     super(eventRepository);
   }
 
-  public async GetEventsWithPrimaryCategory(params: GetEventDto) {
+  public async GetEvents(
+    params: GetEventDto,
+    userId?: number | null,
+  ) {
     const pagination = GetPaginationOptions(params);
-    const qb = this.Repository.createQueryBuilder('event')
-      .select([
-        'event',
-        'images.id',
-        'images.url',
-        'host.id',
-        'host.name',
-        'host.image_url',
-        'category_maps',
-        'categories.id',
-        'categories.name',
-        'categories.icon',
-      ])
-      .leftJoin('event.images', 'images', 'images.is_thumbnail = TRUE')
-      .leftJoin('event.host', 'host')
-      .innerJoin(
-        'event.category_maps',
-        'category_maps',
-        'category_maps.is_primary = TRUE',
+    const paginationClause =
+      pagination.limit != -1
+        ? `LIMIT ${pagination.limit} OFFSET ${pagination.offset}`
+        : '';
+
+    const searchQuery = params.search_query?.trim() ?? null;
+    const categoryIds = params.category_ids?.length ? params.category_ids : null;
+    const isPrivate = params.is_private !== undefined ? params.is_private : null;
+    const city = params.city?.trim() ?? null;
+    const hostId = params.host_id;
+    const userLat = params.user_lat ?? null;
+    const userLng = params.user_lng ?? null;
+    const rangeStart = params.date_range?.start ?? null;
+    const rangeEnd = params.date_range?.end ?? null;
+
+    const rows = await this.Repository.sql`
+      WITH settings AS (
+        SELECT "setting".value::integer AS default_radius
+        FROM "setting"
+        WHERE "setting".key = ${SETTING_KEYS.DEFAULT_RADIUS}
+        LIMIT 1
+      ),
+      filtered AS (
+        SELECT
+          "event".*,
+          distance_calc.distance_meters,
+          CASE WHEN user_interest.user_id IS NULL THEN 0 ELSE 1 END AS interest_score
+        FROM "event"
+        CROSS JOIN settings
+        CROSS JOIN LATERAL (
+          SELECT ST_Distance(
+            "event".geo_location,
+            ST_SetSRID(ST_MakePoint(${userLng}, ${userLat}), 4326)::geography
+          )::integer AS distance_meters
+        ) AS distance_calc
+        LEFT JOIN "event_category_map" AS primary_category_map
+          ON primary_category_map.event_id = "event".id
+          AND primary_category_map.is_primary = true
+        LEFT JOIN "user_category_interests" AS user_interest
+          ON user_interest.category_id = primary_category_map.category_id
+          AND user_interest.user_id = ${userId ?? null}
+        WHERE "event".is_deleted = false
+          AND (${searchQuery}::text IS NULL OR "event".name ILIKE '%' || ${searchQuery} || '%')
+          AND (${isPrivate}::boolean IS NULL OR "event".is_private = ${isPrivate})
+          AND (${city}::text IS NULL OR "event".city = ${city})
+          AND (
+            ${hostId === undefined}::boolean
+            OR (${hostId === 0}::boolean AND "event".host_id IS NULL)
+            OR (${(hostId ?? 0) > 0}::boolean AND "event".host_id = ${hostId}::bigint)
+          )
+          AND (
+            ${categoryIds}::bigint[] IS NULL
+            OR EXISTS (
+              SELECT 1
+              FROM "event_category_map" AS filter_map
+              WHERE filter_map.event_id = "event".id
+                AND filter_map.category_id = ANY(${categoryIds}::bigint[])
+            )
+          )
+          AND (
+            settings.default_radius IS NULL
+            OR distance_calc.distance_meters IS NULL
+            OR distance_calc.distance_meters <= settings.default_radius
+          )
+          AND (${rangeStart}::timestamp IS NULL OR (
+            "event".end_time IS NULL OR "event".end_time >= ${rangeStart}::timestamp
+          ))
+          AND (${rangeEnd}::timestamp IS NULL OR "event".start_time <= ${rangeEnd}::timestamp)
       )
-      .innerJoin('category_maps.category', 'categories');
+      SELECT
+        filtered.id::integer,
+        filtered.created_at,
+        filtered.created_by,
+        filtered.updated_at,
+        filtered.updated_by,
+        filtered.is_deleted,
+        filtered.name,
+        filtered.description,
+        filtered.location_name,
+        filtered.address,
+        CASE
+          WHEN filtered.geo_location IS NULL THEN NULL
+          ELSE json_build_object(
+            'type',
+            'Point',
+            'coordinates',
+            ARRAY[
+              ST_X(filtered.geo_location::geometry),
+              ST_Y(filtered.geo_location::geometry)
+            ]
+          )
+        END AS geo_location,
+        filtered.start_time,
+        filtered.end_time,
+        filtered.allow_ads,
+        filtered.is_private,
+        filtered.capacity,
+        filtered.require_approval,
+        filtered.city,
+        filtered.host_id,
+        filtered.share_code,
+        filtered.distance_meters,
+        json_build_array(
+          json_build_object(
+            'is_primary', true,
+            'category', json_build_object(
+              'id', category.id,
+              'name', category.name,
+              'icon', category.icon
+            )
+          )
+        ) AS category_maps,
+        COALESCE(images.images, '[]'::json) AS images,
+        COUNT(*) OVER()::int AS total_count
+      FROM filtered
+      LEFT JOIN "event_category_map" AS primary_map 
+        ON primary_map.event_id = filtered.id AND primary_map.is_primary = true
+      LEFT JOIN "event_category" AS category ON category.id = primary_map.category_id
+      LEFT JOIN LATERAL (
+        SELECT
+          json_agg(to_jsonb("event_image")) AS images
+        FROM "event_image"
+        WHERE "event_image".event_id = filtered.id
+          AND "event_image".is_thumbnail = true
+          AND "event_image".is_deleted = false
+        LIMIT 1
+      ) AS images ON true
+      ORDER BY 
+        CASE WHEN ${userLat}::float IS NOT NULL AND ${userLng}::float IS NOT NULL 
+             THEN filtered.distance_meters END ASC NULLS LAST,
+        filtered.interest_score DESC,
+        filtered.id ASC
+      ${() => paginationClause}
+    `;
 
-    qb.where('event.is_deleted = false');
+    const count = rows.length ? Number(rows[0].total_count) : 0;
+    const events = rows.map(({ total_count, ...event }) => event);
 
-    if (params.search_query) {
-      qb.andWhere('event.name ILIKE :searchQuery', {
-        searchQuery: `%${params.search_query}%`,
-      });
-    }
-
-    if (params.category_ids?.length) {
-      qb.andWhere('categories.id IN (:...categoryIds)', {
-        categoryIds: params.category_ids,
-      });
-    }
-
-    if (params.is_private !== undefined) {
-      qb.andWhere('event.is_private = :isPrivate', {
-        isPrivate: params.is_private,
-      });
-    }
-
-    if (params.city) {
-      qb.andWhere('event.city = :city', { city: params.city });
-    }
-
-    if (params.host_id) {
-      qb.andWhere('event.host_id = :hostId', { hostId: params.host_id });
-    }
-
-    qb.orderBy('event.id', 'ASC')
-      .take(pagination.limit)
-      .skip(pagination.offset);
-
-    return await qb.getManyAndCount();
+    return [events, count];
   }
 
   public async GetSavedEvents(userId: number, query: GetSavedEventDto) {

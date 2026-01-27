@@ -169,6 +169,19 @@ export class GetEventDto extends PaginationParam {
   @IsOptional()
   @IsNumber()
   host_id?: number;
+
+  @IsOptional()
+  @IsLatitude()
+  user_lat?: number;
+
+  @IsOptional()
+  @IsLongitude()
+  user_lng?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DateRangeDto)
+  date_range?: DateRangeDto;
 }
 
 export class GetSavedEventDto extends PaginationParam {}

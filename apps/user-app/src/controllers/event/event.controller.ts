@@ -48,12 +48,16 @@ export class EventController {
     return await this.eventService.CreateEvent(body, actor.id, false);
   }
 
+  @OptionalAuthorized()
   @Get('/events')
-  async GetEvents(@Query() query: GetEventDto) {
+  async GetEvents(
+    @Query() query: GetEventDto,
+    @OptionalCurrentUser() actor: IRedisUser | null,
+  ) {
     if (query.is_private === undefined) {
       query.is_private = false;
     }
-    return await this.eventService.GetEvents(query);
+    return await this.eventService.GetEvents(query, actor?.id);
   }
 
   @Authorized()

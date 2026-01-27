@@ -65,7 +65,7 @@ export class VendorRepository extends BaseRepository<VendorModel> {
           )
       )
       SELECT
-        filtered.id,
+        filtered.id::integer,
         filtered.created_at,
         filtered.created_by,
         filtered.updated_at,

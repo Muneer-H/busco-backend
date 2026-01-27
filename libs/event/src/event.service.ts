@@ -216,9 +216,9 @@ export class EventService {
     return await this.GetEventById(savedEvent.id);
   }
 
-  public async GetEvents(query: GetEventDto) {
+  public async GetEvents(query: GetEventDto, userId?: number | null) {
     const [events, count] =
-      await this.eventRepository.GetEventsWithPrimaryCategory(query);
+      await this.eventRepository.GetEvents(query, userId);
 
     return { events, count };
   }
