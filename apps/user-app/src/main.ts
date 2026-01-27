@@ -5,7 +5,7 @@ import { appEnv } from '@app/common/helpers/env.helper';
 async function bootstrap() {
   await BootstrapApp({
     appModule: AppModule,
-    port: appEnv('USER_PORT', 3000),
+    port: process.env.PORT || appEnv('USER_PORT', 3000),
     appName: 'User',
   });
 }
