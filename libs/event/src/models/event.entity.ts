@@ -6,6 +6,7 @@ import {
   ManyToOne,
   OneToMany,
   Index,
+  VirtualColumn,
 } from 'typeorm';
 import { EventCategory } from '@app/event-category/models/event_category.entity';
 import { EventCategoryMapModel } from './event_category_map.entity';
@@ -131,4 +132,11 @@ export class EventModel extends BaseModel {
   @ManyToOne(() => UserModel, { nullable: true })
   @JoinColumn({ name: 'host_id' })
   host: UserModel;
+
+  @VirtualColumn({
+    type: 'boolean',
+    query: (alias) =>
+      `SELECT count(*) > 0 FROM "saved_event" WHERE "event_id" = ${alias}.id`,
+  })
+  is_saved: boolean;
 }

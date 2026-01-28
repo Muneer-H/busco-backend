@@ -51,7 +51,8 @@ export class EventRepository extends BaseRepository<EventModel> {
         SELECT
           "event".*,
           distance_calc.distance_meters,
-          CASE WHEN user_interest.user_id IS NULL THEN 0 ELSE 1 END AS interest_score
+          CASE WHEN user_interest.user_id IS NULL THEN 0 ELSE 1 END AS interest_score,
+          "saved_event".user_id IS NOT NULL AS is_saved
         FROM "event"
         CROSS JOIN settings
         CROSS JOIN LATERAL (
@@ -66,6 +67,9 @@ export class EventRepository extends BaseRepository<EventModel> {
         LEFT JOIN "user_category_interests" AS user_interest
           ON user_interest.category_id = primary_category_map.category_id
           AND user_interest.user_id = ${userId ?? null}
+        LEFT JOIN "saved_event"
+          ON "saved_event".event_id = "event".id
+          AND "saved_event".user_id = ${userId ?? null}
         WHERE "event".is_deleted = false
           AND (${searchQuery}::text IS NULL OR "event".name ILIKE '%' || ${searchQuery} || '%')
           AND (${isPrivate}::boolean IS NULL OR "event".is_private = ${isPrivate})
@@ -127,6 +131,7 @@ export class EventRepository extends BaseRepository<EventModel> {
         filtered.host_id,
         filtered.share_code,
         filtered.distance_meters,
+        filtered.is_saved,
         json_build_array(
           json_build_object(
             'is_primary', true,
@@ -181,6 +186,7 @@ export class EventRepository extends BaseRepository<EventModel> {
         'host.name',
         'host.image_url',
       ])
+      .addSelect('true', 'event_is_saved')
       .innerJoin(
         SavedEventModel,
         'saved_event',
@@ -209,10 +215,13 @@ export class EventRepository extends BaseRepository<EventModel> {
     return { events, count };
   }
 
-  public async GetEventWithCategories(where: {
-    id?: number;
-    share_code?: string;
-  }) {
+  public async GetEventWithCategories(
+    where: {
+      id?: number;
+      share_code?: string;
+    },
+    userId?: number | null,
+  ) {
     const normalizedWhere = Object.fromEntries(
       Object.entries(where).filter(([, value]) => value !== undefined),
     );
@@ -224,7 +233,17 @@ export class EventRepository extends BaseRepository<EventModel> {
       .leftJoinAndSelect('event.images', 'images')
       .leftJoinAndSelect('event.host', 'host')
       .leftJoinAndSelect('event.category_maps', 'category_maps')
-      .leftJoinAndSelect('category_maps.category', 'category');
+      .leftJoinAndSelect('category_maps.category', 'category')
+      .leftJoin(
+        'saved_event',
+        'saved_event',
+        'saved_event.event_id = event.id AND saved_event.user_id = :userId',
+        { userId: userId ?? null },
+      )
+      .addSelect(
+        'saved_event.user_id IS NOT NULL',
+        'event_is_saved',
+      );
 
     qb.where(normalizedWhere);
 
@@ -271,6 +290,7 @@ export class EventRepository extends BaseRepository<EventModel> {
         events.name,
         events.start_time,
         events.distance_meters,
+        events.is_saved,
         json_build_object(
           'type',
           'Point',
@@ -292,7 +312,8 @@ export class EventRepository extends BaseRepository<EventModel> {
           thumbnail_image.url AS thumbnail_url,
           ${() => distanceSelect} AS distance_meters,
           ST_SnapToGrid("event".geo_location::geometry, ${params.gridSize}) AS grid_cell,
-          CASE WHEN user_interest.user_id IS NULL THEN 0 ELSE 1 END AS interest_score
+          CASE WHEN user_interest.user_id IS NULL THEN 0 ELSE 1 END AS interest_score,
+          CASE WHEN "saved_event".user_id IS NOT NULL THEN true ELSE false END AS is_saved
         FROM "event"
         LEFT JOIN "event_category_map" AS primary_category_map
           ON primary_category_map.event_id = "event".id
@@ -304,6 +325,9 @@ export class EventRepository extends BaseRepository<EventModel> {
         LEFT JOIN "user_category_interests" AS user_interest
           ON user_interest.category_id = primary_category_map.category_id
           AND user_interest.user_id = ${userId}
+        LEFT JOIN "saved_event"
+          ON "saved_event".event_id = "event".id
+          AND "saved_event".user_id = ${userId}
         WHERE "event".is_deleted = false
           AND "event".is_private = false
           AND "event".geo_location IS NOT NULL
