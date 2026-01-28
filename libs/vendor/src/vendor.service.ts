@@ -58,12 +58,20 @@ export class VendorService {
     return { vendors, count };
   }
 
-  public async GetPublicVendors(query: GetPublicVendorDto) {
-    return await this.vendorRepository.GetPublicVendors(query);
+  public async GetPublicVendors(query: GetPublicVendorDto, userId?: number | null) {
+    return await this.vendorRepository.GetPublicVendors(query, userId);
   }
 
-  public async GetPublicVendorById(id: number, query: UserLocationDto) {
-    const vendor = await this.vendorRepository.GetPublicVendorById(id, query);
+  public async GetPublicVendorById(
+    id: number,
+    query: UserLocationDto,
+    userId?: number | null,
+  ) {
+    const vendor = await this.vendorRepository.GetPublicVendorById(
+      id,
+      query,
+      userId,
+    );
     if (!vendor) {
       throw new BadRequestException('Vendor not found');
     }

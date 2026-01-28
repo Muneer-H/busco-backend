@@ -3,8 +3,14 @@ import {
   GetPublicVendorDto,
   GetSavedVendorDto,
 } from '@app/vendor/dtos/vendor.dto';
-import { Authorized } from '@app/common/decorators/authorized.decorator';
-import { CurrentUser } from '@app/common/decorators/current_user.decorator';
+import {
+  Authorized,
+  OptionalAuthorized,
+} from '@app/common/decorators/authorized.decorator';
+import {
+  CurrentUser,
+  OptionalCurrentUser,
+} from '@app/common/decorators/current_user.decorator';
 import type { IRedisUser } from '@app/user/models/user.entity';
 import { Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -15,9 +21,13 @@ import { UserLocationDto } from '@app/common/base/base.dto';
 export class VendorController {
   constructor(private vendorService: VendorService) {}
 
+  @OptionalAuthorized()
   @Get('/vendors')
-  async GetPublicVendors(@Query() query: GetPublicVendorDto) {
-    return await this.vendorService.GetPublicVendors(query);
+  async GetPublicVendors(
+    @Query() query: GetPublicVendorDto,
+    @OptionalCurrentUser() actor: IRedisUser | null,
+  ) {
+    return await this.vendorService.GetPublicVendors(query, actor?.id);
   }
 
   @Authorized()
@@ -29,12 +39,14 @@ export class VendorController {
     return await this.vendorService.GetSavedVendors(query, actor.id);
   }
 
+  @OptionalAuthorized()
   @Get('/vendors/:id')
   async GetPublicVendorById(
     @Param('id') id: number,
     @Query() query: UserLocationDto,
+    @OptionalCurrentUser() actor: IRedisUser | null,
   ) {
-    return await this.vendorService.GetPublicVendorById(id, query);
+    return await this.vendorService.GetPublicVendorById(id, query, actor?.id);
   }
 
   @Authorized()
