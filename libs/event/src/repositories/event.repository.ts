@@ -1,15 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  BaseRepository,
-  PaginationDBParams,
-} from '@app/common/base/base.repository';
+import { BaseRepository } from '@app/common/base/base.repository';
 import { EventModel } from '../models/event.entity';
 import { SavedEventModel } from '../models/saved_event.entity';
 import { GetEventDto, GetSavedEventDto } from '../dtos/event.dto';
 import { GetPaginationOptions } from '@app/common/helpers/misc.helper';
 import { SETTING_KEYS } from '@app/common/constants/setting_keys.constant';
+import { PaginationParam } from '@app/common/base/base.dto';
 
 @Injectable()
 export class EventRepository extends BaseRepository<EventModel> {
@@ -205,7 +203,6 @@ export class EventRepository extends BaseRepository<EventModel> {
       )
       .leftJoin('category_maps.category', 'categories')
       .leftJoinAndSelect('event.host', 'host')
-      .where('event.is_deleted = false')
       .orderBy('event.id', 'DESC')
       .take(pagination.limit)
       .skip(pagination.offset);
@@ -215,7 +212,85 @@ export class EventRepository extends BaseRepository<EventModel> {
     return { events, count };
   }
 
-  public async GetEventWithCategories(
+  public async GetHostedEvents(userId: number, params: PaginationParam) {
+    const pagination = GetPaginationOptions(params);
+    const qb = this.Repository.createQueryBuilder('event')
+      .select([
+        'event',
+        'event.saved_count',
+        'event.registered_count',
+        'event_image.id',
+        'event_image.url',
+        'event_image.is_thumbnail',
+      ])
+      .innerJoin('event.host', 'host', 'host.id = :userId', { userId })
+      .leftJoin(
+        'event.images',
+        'event_image',
+        'event_image.is_thumbnail = true',
+      )
+      .orderBy('event.id', 'DESC')
+      .take(pagination.limit)
+      .skip(pagination.offset);
+
+    const [events, count] = await qb.getManyAndCount();
+
+    return { events, count };
+  }
+
+  public async GetRegisteredEvents(
+    userId: number,
+    params: PaginationParam,
+    isCheckedIn?: boolean,
+  ) {
+    const pagination = GetPaginationOptions(params);
+
+    const qb = this.Repository.createQueryBuilder('event')
+      .select([
+        'event',
+        'event_image.id',
+        'event_image.url',
+        'event_image.is_thumbnail',
+        'registrations.status',
+        'registrations.created_at',
+        'category_maps',
+        'categories.id',
+        'categories.name',
+        'categories.icon',
+      ])
+      .leftJoin(
+        'event.images',
+        'event_image',
+        'event_image.is_thumbnail = true',
+      )
+      .innerJoin(
+        'event.registrations',
+        'registrations',
+        'registrations.user_id = :userId',
+        { userId },
+      )
+      .innerJoin(
+        'event.category_maps',
+        'category_maps',
+        'category_maps.is_primary = TRUE',
+      )
+      .leftJoin('category_maps.category', 'categories')
+      .where('1=1');
+
+    if (isCheckedIn !== undefined) {
+      qb.andWhere('registrations.checked_in_at IS NOT NULL');
+    }
+
+    qb.orderBy('registrations.created_at', 'DESC')
+      .take(pagination.limit)
+      .skip(pagination.offset);
+
+    const [events, count] = await qb.getManyAndCount();
+
+    return { events, count };
+  }
+
+  public async GetEventByIdOrShareCode(
     where: {
       id?: number;
       share_code?: string;
@@ -240,10 +315,7 @@ export class EventRepository extends BaseRepository<EventModel> {
         'saved_event.event_id = event.id AND saved_event.user_id = :userId',
         { userId: userId ?? null },
       )
-      .addSelect(
-        'saved_event.user_id IS NOT NULL',
-        'event_is_saved',
-      );
+      .addSelect('saved_event.user_id IS NOT NULL', 'event_is_saved');
 
     qb.where(normalizedWhere);
 

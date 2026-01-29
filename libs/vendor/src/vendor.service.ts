@@ -58,7 +58,10 @@ export class VendorService {
     return { vendors, count };
   }
 
-  public async GetPublicVendors(query: GetPublicVendorDto, userId?: number | null) {
+  public async GetPublicVendors(
+    query: GetPublicVendorDto,
+    userId?: number | null,
+  ) {
     return await this.vendorRepository.GetPublicVendors(query, userId);
   }
 

@@ -3,6 +3,7 @@ import { EventRepository } from './repositories/event.repository';
 import { EventImageRepository } from './repositories/event_image.repository';
 import { SavedEventRepository } from './repositories/saved_event.repository';
 import { EventCategoryMapRepository } from './repositories/event_category_map.repository';
+import { EventRegistrationRepository } from './repositories/event_registration.repository';
 import { EventCategoryRepository } from '@app/event-category/repositories/event_category.repository';
 import {
   CreateEventDto,
@@ -17,11 +18,16 @@ import { EventCategoryMapModel } from './models/event_category_map.entity';
 import { EventImageModel } from './models/event_image.entity';
 import { SavedEventModel } from './models/saved_event.entity';
 import {
+  EventRegistrationModel,
+  EventRegistrationStatus,
+} from './models/event_registration.entity';
+import {
   GetPaginationOptions,
   GenerateShortCode,
 } from '@app/common/helpers/misc.helper';
 import { In } from 'typeorm';
 import { DeleteAWSFile } from '@app/common/helpers/media.helper';
+import { PaginationParam } from '@app/common/base/base.dto';
 
 @Injectable()
 export class EventService {
@@ -31,6 +37,7 @@ export class EventService {
     private eventCategoryRepository: EventCategoryRepository,
     private savedEventRepository: SavedEventRepository,
     private eventCategoryMapRepository: EventCategoryMapRepository,
+    private eventRegistrationRepository: EventRegistrationRepository,
   ) {}
 
   private resolveGridSize(zoom?: number): number {
@@ -196,10 +203,11 @@ export class EventService {
     event.is_private = body.is_private ?? false;
     event.capacity = body.capacity;
     event.require_approval = body.require_approval ?? false;
-    event.city = body.city.toLowerCase();
+    event.city = body.city?.toLowerCase();
     event.created_by = actorId;
     event.host_id = isAdmin ? null : actorId;
     event.share_code = GenerateShortCode();
+    event.registration_open = body.registration_open ?? true;
 
     const savedEvent = await this.eventRepository.Create(event);
 
@@ -226,10 +234,21 @@ export class EventService {
     return await this.eventRepository.GetSavedEvents(userId, query);
   }
 
+  public async GetHostedEvents(query: PaginationParam, userId: number) {
+    return await this.eventRepository.GetHostedEvents(userId, query);
+  }
+
+  public async GetRegisteredEvents(query: PaginationParam, userId: number) {
+    return await this.eventRepository.GetRegisteredEvents(userId, query);
+  }
+
+  public async GetAttendedEvents(query: PaginationParam, userId: number) {
+    return await this.eventRepository.GetRegisteredEvents(userId, query, true);
+  }
+
   public async SaveEvent(eventId: number, userId: number) {
     const event = await this.eventRepository.FindOne({
       id: eventId,
-      is_deleted: false,
     });
     if (!event) {
       throw new BadRequestException('Event not found');
@@ -268,11 +287,139 @@ export class EventService {
     return { success: true };
   }
 
+  public async RegisterEvent(eventId: number, userId: number) {
+    const eventPromise = this.eventRepository.FindOne({
+      id: eventId,
+      is_deleted: false,
+    });
+    const registrationCountPromise = this.eventRegistrationRepository.Count({
+      event_id: eventId,
+      status: EventRegistrationStatus.APPROVED,
+    });
+    const [event, registrationCount] = await Promise.all([
+      eventPromise,
+      registrationCountPromise,
+    ]);
+    if (!event) {
+      throw new BadRequestException('Event not found');
+    }
+
+    let registration = await this.eventRegistrationRepository.FindOne({
+      user_id: userId,
+      event_id: eventId,
+    });
+
+    if (registration) {
+      return registration;
+    }
+
+    if (!event.registration_open) {
+      throw new BadRequestException('Event registration is closed');
+    }
+
+    registration = new EventRegistrationModel();
+    registration.user_id = userId;
+    registration.event_id = eventId;
+    registration.created_at = new Date();
+    // TODO: For now, ignore require_approval and automatically approve
+    registration.status = EventRegistrationStatus.APPROVED;
+
+    await this.eventRegistrationRepository.Create(registration);
+
+    if (event.capacity && registrationCount + 1 >= event.capacity) {
+      event.registration_open = false;
+      await this.eventRepository.Update(
+        { id: eventId },
+        { registration_open: false },
+      );
+    }
+
+    return registration;
+  }
+
+  public async UnregisterEventByGuest(eventId: number, userId: number) {
+    const registration = await this.eventRegistrationRepository.FindOne({
+      user_id: userId,
+      event_id: eventId,
+    });
+    if (!registration) {
+      throw new BadRequestException('Registration not found');
+    }
+
+    await this.eventRegistrationRepository.Delete({
+      user_id: userId,
+      event_id: eventId,
+    });
+
+    return { success: true };
+  }
+
+  public async UnregisterUserFromEvent(
+    eventId: number,
+    userId: number,
+    actorId?: number,
+    isAdmin = false,
+  ) {
+    if (!isAdmin && actorId) {
+      const event = await this.eventRepository.FindOne({
+        id: eventId,
+        host_id: actorId,
+      });
+      if (!event) {
+        throw new BadRequestException(
+          'You are not authorized to unregister users from this event',
+        );
+      }
+    }
+
+    const registration = await this.eventRegistrationRepository.FindOne({
+      user_id: userId,
+      event_id: eventId,
+    });
+    if (!registration) {
+      throw new BadRequestException('Registration not found');
+    }
+
+    await this.eventRegistrationRepository.Delete({
+      user_id: userId,
+      event_id: eventId,
+    });
+
+    return { success: true };
+  }
+
+  public async GetEventRegistrations(
+    eventId: number,
+    params: PaginationParam,
+    actorId?: number,
+    isAdmin = false,
+  ) {
+    if (!isAdmin && actorId) {
+      const event = await this.eventRepository.FindOne({
+        id: eventId,
+        host_id: actorId,
+      });
+      if (!event) {
+        throw new BadRequestException(
+          'You are not authorized to view registrations for this event',
+        );
+      }
+    }
+
+    return await this.eventRegistrationRepository.GetEventRegistrations(
+      eventId,
+      params,
+    );
+  }
+
   public async GetEventById(
     id: number,
-    userId?: number | null,
+    actorId?: number | null,
   ): Promise<EventModel> {
-    const event = await this.eventRepository.GetEventWithCategories({ id }, userId);
+    const event = await this.eventRepository.GetEventByIdOrShareCode(
+      { id },
+      actorId,
+    );
 
     if (!event) {
       throw new BadRequestException('Event not found');
@@ -321,13 +468,13 @@ export class EventService {
 
   public async GetEventByShareCode(
     shareCode: string,
-    userId?: number | null,
+    actorId?: number | null,
   ): Promise<EventModel> {
-    const event = await this.eventRepository.GetEventWithCategories(
+    const event = await this.eventRepository.GetEventByIdOrShareCode(
       {
         share_code: shareCode,
       },
-      userId,
+      actorId,
     );
 
     if (!event) {

@@ -2,7 +2,7 @@ import { BaseModel } from '@app/common/base/base.model';
 import type { LocationPoint } from '@app/common/types/location.type';
 import { Column, Entity, Index, Check, OneToMany } from 'typeorm';
 import { UserCategoryInterestModel } from '@app/event-category/models/user_category_interest.entity';
-import { UserFollowModel } from './user_follow.entity';
+import { EventRegistrationModel } from '@app/event/models/event_registration.entity';
 
 export interface IRedisUser {
   id: number;
@@ -98,4 +98,7 @@ export class UserModel extends BaseModel {
 
   @OneToMany(() => UserCategoryInterestModel, (interest) => interest.user)
   category_interests: UserCategoryInterestModel[];
+
+  @OneToMany(() => EventRegistrationModel, (registration) => registration.user)
+  registrations: EventRegistrationModel[];
 }

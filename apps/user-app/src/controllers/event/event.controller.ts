@@ -32,6 +32,7 @@ import { ApiFile } from '@app/common/decorators/api_file.decorator';
 import { multerObj } from '@app/common/helpers/media.helper';
 import { S3Prefix } from '@app/common/enums/s3_prefix.enum';
 import { ImageMimeTypes } from '@app/common/constants/image_mimes_types.constant';
+import { PaginationParam } from '@app/common/base/base.dto';
 
 @ApiTags('Event')
 @Controller()
@@ -68,6 +69,33 @@ export class EventController {
     return await this.eventService.GetSavedEvents(query, actor.id);
   }
 
+  @Authorized()
+  @Get('/events/hosted')
+  async GetHostedEvents(
+    @Query() query: PaginationParam,
+    @CurrentUser() actor: IRedisUser,
+  ) {
+    return await this.eventService.GetHostedEvents(query, actor.id);
+  }
+
+  @Authorized()
+  @Get('/events/registered')
+  async GetRegisteredEvents(
+    @Query() query: PaginationParam,
+    @CurrentUser() actor: IRedisUser,
+  ) {
+    return await this.eventService.GetRegisteredEvents(query, actor.id);
+  }
+
+  @Authorized()
+  @Get('/events/attended')
+  async GetAttendedEvents(
+    @Query() query: PaginationParam,
+    @CurrentUser() actor: IRedisUser,
+  ) {
+    return await this.eventService.GetAttendedEvents(query, actor.id);
+  }
+
   @OptionalAuthorized()
   @Get('/events/map-view')
   async GetMapViewEvents(
@@ -93,6 +121,38 @@ export class EventController {
   }
 
   @Authorized()
+  @Post('/events/:id/register')
+  async RegisterEvent(
+    @Param('id') id: number,
+    @CurrentUser() actor: IRedisUser,
+  ) {
+    return await this.eventService.RegisterEvent(id, actor.id);
+  }
+
+  @Authorized()
+  @Delete('/events/:id/register')
+  async UnregisterEvent(
+    @Param('id') id: number,
+    @CurrentUser() actor: IRedisUser,
+  ) {
+    return await this.eventService.UnregisterEventByGuest(id, actor.id);
+  }
+
+  @Authorized()
+  @Delete('/events/:id/register/:userId')
+  async UnregisterUserFromEvent(
+    @Param('id') id: number,
+    @Param('userId') userId: number,
+    @CurrentUser() actor: IRedisUser,
+  ) {
+    return await this.eventService.UnregisterUserFromEvent(
+      id,
+      userId,
+      actor.id,
+    );
+  }
+
+  @Authorized()
   @Delete('/events/:id/save')
   async UnsaveEvent(@Param('id') id: number, @CurrentUser() actor: IRedisUser) {
     return await this.eventService.UnsaveEvent(id, actor.id);
@@ -105,6 +165,21 @@ export class EventController {
     @OptionalCurrentUser() actor: IRedisUser | null,
   ) {
     return await this.eventService.GetEventById(id, actor?.id);
+  }
+
+  @Authorized()
+  @Get('/events/:id/registrations')
+  async GetEventRegistrations(
+    @Param('id') id: number,
+    @Query() query: PaginationParam,
+    @CurrentUser() actor: IRedisUser,
+  ) {
+    return await this.eventService.GetEventRegistrations(
+      id,
+      query,
+      actor.id,
+      false,
+    );
   }
 
   @Authorized()

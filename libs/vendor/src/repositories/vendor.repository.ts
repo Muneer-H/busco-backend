@@ -17,7 +17,10 @@ export class VendorRepository extends BaseRepository<VendorModel> {
     super(vendorRepository);
   }
 
-  public async GetPublicVendors(query: GetPublicVendorDto, userId?: number | null) {
+  public async GetPublicVendors(
+    query: GetPublicVendorDto,
+    userId?: number | null,
+  ) {
     const options = GetPaginationOptions(query);
     const paginationClause =
       options.limit != -1
@@ -124,7 +127,11 @@ export class VendorRepository extends BaseRepository<VendorModel> {
     return { vendors, count };
   }
 
-  public async GetPublicVendorById(id: number, query: UserLocationDto, userId?: number | null) {
+  public async GetPublicVendorById(
+    id: number,
+    query: UserLocationDto,
+    userId?: number | null,
+  ) {
     const rows = await this.Repository.sql`
       WITH filtered AS (
         SELECT

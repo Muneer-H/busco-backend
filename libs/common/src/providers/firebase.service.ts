@@ -59,9 +59,11 @@ export class FirebaseService implements INotificationProvider, OnModuleInit {
       };
     }
 
-    Object.keys(payload.data).forEach((key) => {
-      payload.data[key] = payload.data[key].toString();
-    });
+    if (payload.data) {
+      Object.keys(payload.data).forEach((key) => {
+        payload.data[key] = String(payload.data[key]);
+      });
+    }
 
     const message: MulticastMessage = {
       tokens: validTokens,
