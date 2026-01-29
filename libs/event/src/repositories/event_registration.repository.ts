@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SimpleRepository } from '@app/common/base/simple.repository';
-import { EventRegistrationModel, EventRegistrationStatus } from '../models/event_registration.entity';
+import {
+  EventRegistrationModel,
+  EventRegistrationStatus,
+} from '../models/event_registration.entity';
 import { GetPaginationOptions } from '@app/common/helpers/misc.helper';
 import { PaginationParam } from '@app/common/base/base.dto';
 
@@ -15,10 +18,7 @@ export class EventRegistrationRepository extends SimpleRepository<EventRegistrat
     super(eventRegistrationRepository);
   }
 
-  public async GetEventRegistrations(
-    eventId: number,
-    params: PaginationParam,
-  ) {
+  public async GetEventRegistrations(eventId: number, params: PaginationParam) {
     const pagination = GetPaginationOptions(params);
 
     const [registrations, count] = await this.Repository.findAndCount({

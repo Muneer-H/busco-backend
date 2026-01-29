@@ -141,7 +141,11 @@ export class EventController {
     @Param('userId') userId: number,
     @CurrentUser() actor: IRedisUser,
   ) {
-    return await this.eventService.UnregisterUserFromEvent(id, userId, actor.id);
+    return await this.eventService.UnregisterUserFromEvent(
+      id,
+      userId,
+      actor.id,
+    );
   }
 
   @Authorized()
