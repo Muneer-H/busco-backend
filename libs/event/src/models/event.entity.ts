@@ -6,12 +6,17 @@ import {
   ManyToOne,
   OneToMany,
   Index,
+  AfterLoad,
+  VirtualColumn,
 } from 'typeorm';
-import { EventCategory } from '@app/event-category/models/event_category.entity';
 import { EventCategoryMapModel } from './event_category_map.entity';
 import { EventImageModel } from './event_image.entity';
 import { UserModel } from '@app/user/models/user.entity';
 import type { LocationPoint } from '@app/common/types/location.type';
+import {
+  EventRegistrationModel,
+  EventRegistrationStatus,
+} from './event_registration.entity';
 
 @Entity('event')
 export class EventModel extends BaseModel {
@@ -122,6 +127,32 @@ export class EventModel extends BaseModel {
   })
   share_code: string;
 
+  @Column({
+    name: 'registration_open',
+    type: 'boolean',
+    nullable: false,
+    default: true,
+  })
+  registration_open: boolean;
+
+  @VirtualColumn({
+    type: 'integer',
+    query: (alias: string) =>
+      `SELECT COUNT(*) FROM saved_event se WHERE se.event_id = ${alias}.id`,
+    select: false,
+  })
+  saved_count: number;
+
+  @VirtualColumn({
+    type: 'integer',
+    query: (alias: string) =>
+      `SELECT COUNT(*) FROM event_registration e ` +
+      `WHERE e.event_id = ${alias}.id AND e.status = '${EventRegistrationStatus.APPROVED}' ` +
+      `AND e.checked_in_at IS NOT NULL`,
+    select: false,
+  })
+  registered_count: number;
+
   @OneToMany(() => EventImageModel, (image) => image.event)
   images: EventImageModel[];
 
@@ -131,4 +162,7 @@ export class EventModel extends BaseModel {
   @ManyToOne(() => UserModel, { nullable: true })
   @JoinColumn({ name: 'host_id' })
   host: UserModel;
+
+  @OneToMany(() => EventRegistrationModel, (registration) => registration.event)
+  registrations: EventRegistrationModel[];
 }

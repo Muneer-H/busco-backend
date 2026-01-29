@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsNotEmpty,
@@ -86,6 +86,10 @@ export class CreateEventDto {
   @IsString()
   @Length(1, 100)
   city?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  registration_open?: boolean;
 }
 
 export class UpdateEventDto {
@@ -145,7 +149,12 @@ export class UpdateEventDto {
   @IsOptional()
   @IsString()
   @Length(1, 100)
+  @Transform(({ value }) => value?.toLowerCase())
   city?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  registration_open?: boolean;
 }
 
 export class GetEventDto extends PaginationParam {

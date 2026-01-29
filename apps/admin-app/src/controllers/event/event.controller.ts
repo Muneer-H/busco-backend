@@ -53,6 +53,15 @@ export class EventController {
   }
 
   @Authorized()
+  @Get('/events/:id/registrations')
+  async GetEventRegistrations(
+    @Param('id') id: number,
+    @Query() query: GetEventDto,
+  ) {
+    return await this.eventService.GetEventRegistrations(id, query, null, true);
+  }
+
+  @Authorized()
   @Put('/events/:id')
   async UpdateEvent(
     @Param('id') id: number,
@@ -121,6 +130,20 @@ export class EventController {
       eventId,
       [imageId],
       actor.id,
+      true,
+    );
+  }
+
+  @Authorized()
+  @Delete('/events/:id/register/:userId')
+  async UnregisterUserFromEvent(
+    @Param('id') id: number,
+    @Param('userId') userId: number,
+  ) {
+    return await this.eventService.UnregisterUserFromEvent(
+      id,
+      userId,
+      null,
       true,
     );
   }
