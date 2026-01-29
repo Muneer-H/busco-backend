@@ -52,12 +52,18 @@ module.exports = {
     {
       name: 'user',
       script: 'dist/apps/user-app/src/main.js',
-      env: { USER_PORT: 3000, ENVIRONMENT: process.env.ENVIRONMENT || 'production' }
+      env: { 
+        USER_PORT: process.env.USER_PORT || process.env.PORT || 3000, 
+        ENVIRONMENT: process.env.ENVIRONMENT || 'production' 
+      }
     },
     {
       name: 'admin',
       script: 'dist/apps/admin-app/src/main.js',
-      env: { ADMIN_PORT: 3004, ENVIRONMENT: process.env.ENVIRONMENT || 'production' }
+      env: { 
+        ADMIN_PORT: process.env.ADMIN_PORT || 3004, 
+        ENVIRONMENT: process.env.ENVIRONMENT || 'production' 
+      }
     }
   ]
 };

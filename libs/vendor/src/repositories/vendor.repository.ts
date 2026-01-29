@@ -17,7 +17,10 @@ export class VendorRepository extends BaseRepository<VendorModel> {
     super(vendorRepository);
   }
 
-  public async GetPublicVendors(query: GetPublicVendorDto) {
+  public async GetPublicVendors(
+    query: GetPublicVendorDto,
+    userId?: number | null,
+  ) {
     const options = GetPaginationOptions(query);
     const paginationClause =
       options.limit != -1
@@ -44,7 +47,8 @@ export class VendorRepository extends BaseRepository<VendorModel> {
       filtered AS (
         SELECT
           "vendor".*,
-          distance_calc.distance_meters
+          distance_calc.distance_meters,
+          CASE WHEN "saved_vendor".user_id IS NOT NULL THEN true ELSE false END AS is_saved
         FROM "vendor"
         CROSS JOIN settings
         CROSS JOIN LATERAL (
@@ -53,6 +57,9 @@ export class VendorRepository extends BaseRepository<VendorModel> {
             ST_SetSRID(ST_MakePoint(${query.user_lng}, ${query.user_lat}), 4326)::geography
           )::integer AS distance_meters
         ) AS distance_calc
+        LEFT JOIN "saved_vendor"
+          ON "saved_vendor".vendor_id = "vendor".id
+          AND "saved_vendor".user_id = ${userId ?? null}
         WHERE "vendor".is_deleted = false
           AND (${searchQuery}::text IS NULL OR "vendor".name ILIKE '%' || ${searchQuery} || '%')
           AND (${foodTypes}::text[] IS NULL OR "vendor".food_type && ${foodTypes}::text[])
@@ -61,6 +68,7 @@ export class VendorRepository extends BaseRepository<VendorModel> {
           AND (${closesIfRain}::boolean IS NULL OR "vendor".closes_if_rain = ${closesIfRain})
           AND (
             settings.default_radius IS NULL
+            OR distance_calc.distance_meters IS NULL
             OR distance_calc.distance_meters <= settings.default_radius
           )
       )
@@ -96,6 +104,7 @@ export class VendorRepository extends BaseRepository<VendorModel> {
         filtered.neighborhood,
         filtered.xano_id,
         filtered.distance_meters,
+        filtered.is_saved,
         COALESCE(images.images, '[]'::json) AS images,
         COUNT(*) OVER()::int AS total_count
       FROM filtered
@@ -118,12 +127,17 @@ export class VendorRepository extends BaseRepository<VendorModel> {
     return { vendors, count };
   }
 
-  public async GetPublicVendorById(id: number, query: UserLocationDto) {
+  public async GetPublicVendorById(
+    id: number,
+    query: UserLocationDto,
+    userId?: number | null,
+  ) {
     const rows = await this.Repository.sql`
       WITH filtered AS (
         SELECT
           "vendor".*,
-          distance_calc.distance_meters
+          distance_calc.distance_meters,
+          CASE WHEN "saved_vendor".user_id IS NOT NULL THEN true ELSE false END AS is_saved
         FROM "vendor"
         CROSS JOIN LATERAL (
           SELECT ST_Distance(
@@ -131,11 +145,14 @@ export class VendorRepository extends BaseRepository<VendorModel> {
             ST_SetSRID(ST_MakePoint(${query.user_lng}, ${query.user_lat}), 4326)::geography
           )::integer AS distance_meters
         ) AS distance_calc
+        LEFT JOIN "saved_vendor"
+          ON "saved_vendor".vendor_id = "vendor".id
+          AND "saved_vendor".user_id = ${userId ?? null}
         WHERE "vendor".id = ${id}
           AND "vendor".is_deleted = false
       )
       SELECT
-        filtered.id,
+        filtered.id::integer,
         filtered.created_at,
         filtered.created_by,
         filtered.updated_at,
@@ -165,6 +182,7 @@ export class VendorRepository extends BaseRepository<VendorModel> {
         filtered.closes_if_rain,
         filtered.neighborhood,
         filtered.distance_meters,
+        filtered.is_saved,
         COALESCE(images.images, '[]'::json) AS images
       FROM filtered
       LEFT JOIN LATERAL (

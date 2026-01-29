@@ -35,7 +35,12 @@ export class SavedVendorRepository extends SimpleRepository<SavedVendorModel> {
 
     const [savedVendors, count] = await qb.getManyAndCount();
     const vendors = savedVendors
-      .map((saved) => saved.vendor)
+      .map((saved) => {
+        if (saved.vendor) {
+          saved.vendor.is_saved = true;
+        }
+        return saved.vendor;
+      })
       .filter((vendor) => vendor);
 
     return { vendors, count };

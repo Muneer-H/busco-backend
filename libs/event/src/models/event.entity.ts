@@ -6,7 +6,6 @@ import {
   ManyToOne,
   OneToMany,
   Index,
-  AfterLoad,
   VirtualColumn,
 } from 'typeorm';
 import { EventCategoryMapModel } from './event_category_map.entity';
@@ -152,6 +151,13 @@ export class EventModel extends BaseModel {
     select: false,
   })
   registered_count: number;
+
+  @VirtualColumn({
+    type: 'boolean',
+    query: (alias: string) =>
+      `SELECT count(*) > 0 FROM "saved_event" WHERE "event_id" = ${alias}.id`,
+  })
+  is_saved: boolean;
 
   @OneToMany(() => EventImageModel, (image) => image.event)
   images: EventImageModel[];

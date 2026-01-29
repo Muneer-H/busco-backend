@@ -105,9 +105,13 @@ export class EventController {
     return await this.eventService.GetMapViewEvents(query, actor?.id ?? null);
   }
 
+  @OptionalAuthorized()
   @Get('/events/by-share-code/:shareCode')
-  async GetEventByShareCode(@Param('shareCode') shareCode: string) {
-    return await this.eventService.GetEventByShareCode(shareCode);
+  async GetEventByShareCode(
+    @Param('shareCode') shareCode: string,
+    @OptionalCurrentUser() actor: IRedisUser | null,
+  ) {
+    return await this.eventService.GetEventByShareCode(shareCode, actor?.id);
   }
 
   @Authorized()
@@ -154,9 +158,13 @@ export class EventController {
     return await this.eventService.UnsaveEvent(id, actor.id);
   }
 
+  @OptionalAuthorized()
   @Get('/events/:id')
-  async GetEventById(@Param('id') id: number) {
-    return await this.eventService.GetEventById(id);
+  async GetEventById(
+    @Param('id') id: number,
+    @OptionalCurrentUser() actor: IRedisUser | null,
+  ) {
+    return await this.eventService.GetEventById(id, actor?.id);
   }
 
   @Authorized()

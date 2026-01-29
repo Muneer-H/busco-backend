@@ -221,7 +221,7 @@ export class EventService {
 
     await this.eventCategoryMapRepository.CreateAll(eventCategories);
 
-    return await this.GetEventById(savedEvent.id);
+    return await this.GetEventById(savedEvent.id, actorId);
   }
 
   public async GetEvents(query: GetEventDto, userId?: number | null) {
@@ -412,8 +412,14 @@ export class EventService {
     );
   }
 
-  public async GetEventById(id: number): Promise<EventModel> {
-    const event = await this.eventRepository.GetEventByIdOrShareCode({ id });
+  public async GetEventById(
+    id: number,
+    actorId?: number | null,
+  ): Promise<EventModel> {
+    const event = await this.eventRepository.GetEventByIdOrShareCode(
+      { id },
+      actorId,
+    );
 
     if (!event) {
       throw new BadRequestException('Event not found');
@@ -460,10 +466,16 @@ export class EventService {
     });
   }
 
-  public async GetEventByShareCode(shareCode: string): Promise<EventModel> {
-    const event = await this.eventRepository.GetEventByIdOrShareCode({
-      share_code: shareCode,
-    });
+  public async GetEventByShareCode(
+    shareCode: string,
+    actorId?: number | null,
+  ): Promise<EventModel> {
+    const event = await this.eventRepository.GetEventByIdOrShareCode(
+      {
+        share_code: shareCode,
+      },
+      actorId,
+    );
 
     if (!event) {
       throw new BadRequestException('Event not found');
@@ -498,7 +510,7 @@ export class EventService {
       primaryCategoryId: body.primary_category_id,
     });
 
-    return await this.GetEventById(id);
+    return await this.GetEventById(id, actorId);
   }
 
   public async CancelEvent(
@@ -506,7 +518,7 @@ export class EventService {
     actorId: number,
     isAdmin: boolean,
   ): Promise<boolean> {
-    const event = await this.GetEventById(id);
+    const event = await this.GetEventById(id, actorId);
 
     if (!isAdmin && event.host_id != actorId) {
       throw new BadRequestException(
@@ -534,7 +546,7 @@ export class EventService {
     actorId: number,
     isAdmin: boolean,
   ): Promise<EventImageModel[]> {
-    const event = await this.GetEventById(id);
+    const event = await this.GetEventById(id, actorId);
 
     if (!isAdmin && event.host_id != actorId) {
       throw new BadRequestException(

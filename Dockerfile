@@ -34,8 +34,13 @@ COPY . .
 
 # Build all apps (dist/*)
 RUN pnpm run build:all
+
+# Download RDS CA certificate bundle for SSL connections
+RUN mkdir -p dist/libs/database/src && \
+    curl -sS https://truststore.pki.rds.amazonaws.com/me-central-1/me-central-1-bundle.pem -o dist/libs/database/src/me-central-1-bundle.pem
+
 # Prune devDependencies to reduce runtime image size
-RUN HUSKY=0 pnpm prune --prod --ignore-scripts
+RUN CI=true HUSKY=0 pnpm prune --prod --ignore-scripts
 
 # ---------------------
 # Runtime: minimal, production deps only
@@ -43,26 +48,17 @@ RUN HUSKY=0 pnpm prune --prod --ignore-scripts
 FROM base AS runner
 WORKDIR /app
 
-# Install tools needed to fetch secrets at runtime and pm2
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    jq \
-    awscli \
-  && rm -rf /var/lib/apt/lists/* \
-  && npm i -g pm2
+# Install pnpm for running the app
+RUN npm i -g pnpm@10
 
 # Copy production node_modules, build output, and manifest
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/.env ./.env
 
-# Copy entrypoint script
-COPY docker_entrypoint.sh ./docker_entrypoint.sh
-RUN chmod +x ./docker_entrypoint.sh
+# Expose port for the user app
+EXPOSE 3000
 
-# Expose ports for all apps
-EXPOSE 3000 3004
-
-ENTRYPOINT ["/app/docker_entrypoint.sh"]
+CMD ["pnpm", "run", "prod:user"]

@@ -314,7 +314,10 @@ export class UserService {
   }
 
   public async GetMe(user: IRedisUser) {
-    const userData = await this.userRepository.FindById(user.id);
+    const userData = await this.userRepository.FindOne(
+      { id: user.id },
+      { relations: ['category_interests', 'category_interests.category'] },
+    );
     return userData;
   }
 
